@@ -14,4 +14,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Page<Post> findAllPublicPosts(Pageable pageable);
 
     Page<Post> findByUserId(Long userId, Pageable pageable);
+
+    @org.springframework.data.jpa.repository.Query("SELECT p FROM Post p WHERE p.user.id IN :userIds ORDER BY p.createdAt DESC")
+    Page<Post> findByUserIdIn(java.util.List<Long> userIds, Pageable pageable);
 }

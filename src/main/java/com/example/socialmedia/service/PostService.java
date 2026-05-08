@@ -14,16 +14,27 @@ import com.example.socialmedia.entity.Like;
 import com.example.socialmedia.entity.Comment;
 import com.example.socialmedia.dto.CommentRequest;
 import com.example.socialmedia.dto.CommentResponse;
+import com.example.socialmedia.service.kafka.EventProducerService;
+import com.example.socialmedia.dto.kafka.NotificationEvent;
 
+import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import lombok.extern.slf4j.Slf4j;
+
+import java.time.Instant;
+import java.util.List;
+
 @Service
+@Slf4j
+@CacheConfig(cacheNames = "posts")
 public class PostService {
 
         private final PostRepository postRepository;
@@ -34,12 +45,14 @@ public class PostService {
         private final NotificationService notificationService;
         private final com.example.socialmedia.repository.FollowRepository followRepository;
         private final com.example.socialmedia.repository.BlockRepository blockRepository;
+        private final EventProducerService eventProducerService;
 
         public PostService(PostRepository postRepository, UserRepository userRepository,
                         LikeRepository likeRepository, CommentRepository commentRepository,
                         ExternalApiService externalApiService, NotificationService notificationService,
                         com.example.socialmedia.repository.FollowRepository followRepository,
-                        com.example.socialmedia.repository.BlockRepository blockRepository) {
+                        com.example.socialmedia.repository.BlockRepository blockRepository,
+                        EventProducerService eventProducerService) {
                 this.postRepository = postRepository;
                 this.userRepository = userRepository;
                 this.likeRepository = likeRepository;
@@ -48,10 +61,15 @@ public class PostService {
                 this.notificationService = notificationService;
                 this.followRepository = followRepository;
                 this.blockRepository = blockRepository;
+                this.eventProducerService = eventProducerService;
         }
 
         @Transactional
-        @CacheEvict(value = "posts", allEntries = true)
+        @Caching(evict = {
+                @CacheEvict(value = "posts", allEntries = true),
+                @CacheEvict(value = "feed", allEntries = true),
+                @CacheEvict(value = "userProfiles", allEntries = true)
+        })
         public PostResponse createPost(PostRequest request, String userEmail) {
                 User user = userRepository.findByEmail(userEmail)
                                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
@@ -66,7 +84,28 @@ public class PostService {
 
                 externalApiService.notifyPostCreated(savedPost);
 
+                // Send Kafka event for async processing
+                sendNotificationEvent(post.getUser().getId(), "POST", "LIKE",
+                        user.getId(), savedPost.getId(), "Post created");
+
                 return mapToPostResponse(savedPost, userEmail);
+        }
+
+        @Transactional(readOnly = true)
+        @Cacheable(value = "feed", key = "'user:' + #currentUserEmail")
+        public Page<PostResponse> getHomeFeed(String currentUserEmail, Pageable pageable) {
+                User user = userRepository.findByEmail(currentUserEmail)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+
+                // Get followings
+                var followings = followRepository.findByFollower(user)
+                                .stream().map(f -> f.getFollowing().getId()).toList();
+
+                // Include self in feed
+                followings.add(user.getId());
+
+                return postRepository.findByUserIdIn(followings, pageable)
+                                .map(post -> mapToPostResponse(post, currentUserEmail));
         }
 
         @Transactional(readOnly = true)
@@ -104,6 +143,10 @@ public class PostService {
         }
 
         @Transactional
+        @Caching(evict = {
+                @CacheEvict(value = "feed", allEntries = true),
+                @CacheEvict(value = "posts", allEntries = true)
+        })
         public String toggleLike(Long postId, String email) {
                 User user = userRepository.findByEmail(email)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -122,16 +165,25 @@ public class PostService {
                         like.setPost(post);
                         likeRepository.save(like);
 
-                        // Notify post owner
-                        notificationService.createNotification(
-                                        post.getUser(), NotificationType.LIKE,
-                                        getDisplayName(user) + " liked your post", user);
+                        // Send async notification via Kafka (non-blocking)
+                        sendNotificationEvent(
+                                post.getUser().getId(),
+                                "POST",
+                                "LIKE",
+                                user.getId(),
+                                postId,
+                                getDisplayName(user) + " liked your post"
+                        );
 
                         return "Post liked";
                 }
         }
 
         @Transactional
+        @Caching(evict = {
+                @CacheEvict(value = "feed", allEntries = true),
+                @CacheEvict(value = "posts", allEntries = true)
+        })
         public void addComment(Long postId, CommentRequest request, String email) {
                 User user = userRepository.findByEmail(email)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -146,14 +198,23 @@ public class PostService {
 
                 commentRepository.save(comment);
 
-                // Notify post owner
-                notificationService.createNotification(
-                                post.getUser(), NotificationType.COMMENT,
-                                getDisplayName(user) + " commented on your post", user);
+                // Send async notification via Kafka (non-blocking)
+                sendNotificationEvent(
+                        post.getUser().getId(),
+                        "POST",
+                        "COMMENT",
+                        user.getId(),
+                        postId,
+                        getDisplayName(user) + " commented on your post"
+                );
         }
 
         @Transactional
-        @CacheEvict(value = "posts", allEntries = true)
+        @Caching(evict = {
+                @CacheEvict(value = "posts", allEntries = true),
+                @CacheEvict(value = "feed", allEntries = true),
+                @CacheEvict(value = "userProfiles", allEntries = true)
+        })
         public void deletePost(Long postId, String email) {
                 Post post = postRepository.findById(postId)
                                 .orElseThrow(() -> new RuntimeException("Post not found"));
@@ -227,5 +288,18 @@ public class PostService {
                                 .createdAt(post.getCreatedAt())
                                 .isLiked(isLiked)
                                 .build();
+        }
+
+        // Helper to send async notification via Kafka
+        private void sendNotificationEvent(Long targetUserId, String resourceType,
+                        String type, Long actorId, Long resourceId, String content) {
+                try {
+                    eventProducerService.sendNotification(new NotificationEvent(
+                            type, actorId, targetUserId, resourceId, resourceType, Instant.now()
+                    ));
+                } catch (Exception e) {
+                        // Log but don't fail - Kafka is optional for notifications
+                        log.warn("Failed to send async notification: {}", e.getMessage());
+                }
         }
 }
