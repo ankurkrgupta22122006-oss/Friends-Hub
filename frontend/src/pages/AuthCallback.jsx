@@ -1,12 +1,12 @@
-import { useEffect, useContext } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import { AuthContext } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 import api from "../api/axios";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
-  const { loginUser } = useContext(AuthContext);
+  const { loginUser } = useAuth();
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -46,3 +46,4 @@ export default function AuthCallback() {
     </div>
   );
 }
+
