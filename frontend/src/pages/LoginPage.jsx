@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, Sparkles, ArrowRight, Loader } from 'lucide-react';
+import { Mail, Lock, Sparkles, ArrowRight, Loader, Eye, EyeOff } from 'lucide-react';
 import { login } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
@@ -16,6 +16,7 @@ export default function LoginPage() {
     const [form, setForm] = useState({ email: '', password: '' });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -68,15 +69,15 @@ export default function LoginPage() {
                 className="glass w-full max-w-md rounded-2xl p-8 relative z-10"
             >
                 <div className="text-center mb-8">
-                    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'12px', marginBottom:'32px' }}>
-                      <span style={{
-                        fontFamily: "'Grand Hotel', cursive",
-                        fontSize: '48px', 
-                        lineHeight: 1
-                      }}>
-                        <span style={{color:'var(--text-primary)'}}>Friends</span>
-                        <span className="text-[var(--accent)]">Hub</span>
-                      </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
+                        <span style={{
+                            fontFamily: "'Grand Hotel', cursive",
+                            fontSize: '48px',
+                            lineHeight: 1
+                        }}>
+                            <span style={{ color: 'var(--text-primary)' }}>Friends</span>
+                            <span className="text-[var(--accent)]">Hub</span>
+                        </span>
                     </div>
                     <h1 className="text-2xl font-bold text-[var(--text-primary)]">
                         {isForgotPassword ? 'Reset Password' : 'Welcome back'}
@@ -166,13 +167,21 @@ export default function LoginPage() {
                             <div className="relative">
                                 <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                                 <input
-                                    type="password"
-                                    className="input-field pl-9 text-[13px]"
+                                    type={showPassword ? 'text' : 'password'}
+                                    className="input-field pl-9 pr-9 text-[13px]"
                                     placeholder="••••••••"
                                     value={form.password}
                                     onChange={(e) => setForm({ ...form, password: e.target.value })}
                                     required
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword((prev) => !prev)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                >
+                                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                                </button>
                             </div>
                         </div>
 
@@ -203,11 +212,11 @@ export default function LoginPage() {
                         <GoogleLoginButton />
 
                         <p className="text-center text-[12px] text-[var(--text-muted)] mt-6">
-                        Don&apos;t have an account?{' '}
-                        <Link to="/register" className="text-[var(--accent)] hover:underline font-medium">
-                            Sign up
-                        </Link>
-                    </p>
+                            Don&apos;t have an account?{' '}
+                            <Link to="/register" className="text-[var(--accent)] hover:underline font-medium">
+                                Sign up
+                            </Link>
+                        </p>
                     </>
                 )}
             </motion.div>

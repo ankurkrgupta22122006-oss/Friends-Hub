@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, UserPlus, ArrowRight, User as UserIcon, Loader, CheckCircle } from 'lucide-react';
+import { Mail, Lock, UserPlus, ArrowRight, User as UserIcon, Loader, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { register } from '../api/auth';
 import { useToast } from '../components/Toast';
 
@@ -11,6 +11,7 @@ export default function RegisterPage() {
     const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
     const [passwordError, setPasswordError] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const toast = useToast();
 
     const validatePassword = (password) => {
@@ -60,15 +61,15 @@ export default function RegisterPage() {
                 className="glass w-full max-w-md rounded-2xl p-8 relative z-10"
             >
                 <div className="text-center mb-8">
-                    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'12px', marginBottom:'32px' }}>
-                      <span style={{
-                        fontFamily: "'Grand Hotel', cursive",
-                        fontSize: '48px', 
-                        lineHeight: 1
-                      }}>
-                        <span style={{color:'var(--text-primary)'}}>Friends</span>
-                        <span className="text-[var(--accent)]">Hub</span>
-                      </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
+                        <span style={{
+                            fontFamily: "'Grand Hotel', cursive",
+                            fontSize: '48px',
+                            lineHeight: 1
+                        }}>
+                            <span style={{ color: 'var(--text-primary)' }}>Friends</span>
+                            <span className="text-[var(--accent)]">Hub</span>
+                        </span>
                     </div>
                     <h1 className="text-2xl font-bold">Create account</h1>
                     <p className="text-[12px] text-[var(--text-muted)] mt-1">Join the FriendsHub community</p>
@@ -115,11 +116,25 @@ export default function RegisterPage() {
                         <label className="text-[11px] font-medium text-[var(--text-secondary)] mb-1 block">Password</label>
                         <div className="relative">
                             <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-                            <input type="password" className={`input-field pl-9 text-[13px] ${passwordError ? 'border-red-500/50' : ''}`} placeholder="Min. 8 chars, 1 uppercase, 1 number" value={form.password}
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                className={`input-field pl-9 pr-9 text-[13px] ${passwordError ? 'border-red-500/50' : ''}`}
+                                placeholder="Min. 8 chars, 1 uppercase, 1 number"
+                                value={form.password}
                                 onChange={(e) => {
                                     setForm({ ...form, password: e.target.value });
                                     if (passwordError) setPasswordError(validatePassword(e.target.value));
-                                }} required />
+                                }}
+                                required
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword((prev) => !prev)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                            >
+                                {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                            </button>
                         </div>
                         {passwordError && (
                             <p className="text-[11px] text-red-400 mt-1">{passwordError}</p>
@@ -128,19 +143,18 @@ export default function RegisterPage() {
                         {form.password.length > 0 && (
                             <div className="flex gap-1 mt-1.5">
                                 {[1, 2, 3].map((level) => {
-                                    const strength = 
+                                    const strength =
                                         form.password.length >= 8 && /[A-Z]/.test(form.password) && /[0-9]/.test(form.password) ? 3 :
-                                        form.password.length >= 8 ? 2 : 1;
+                                            form.password.length >= 8 ? 2 : 1;
                                     return (
                                         <div
                                             key={level}
-                                            className={`h-1 flex-1 rounded-full transition-colors ${
-                                                level <= strength
+                                            className={`h-1 flex-1 rounded-full transition-colors ${level <= strength
                                                     ? strength === 1 ? 'bg-red-400'
-                                                    : strength === 2 ? 'bg-yellow-400'
-                                                    : 'bg-emerald-400'
+                                                        : strength === 2 ? 'bg-yellow-400'
+                                                            : 'bg-emerald-400'
                                                     : 'bg-[var(--border-color)]'
-                                            }`}
+                                                }`}
                                         />
                                     );
                                 })}
