@@ -88,9 +88,9 @@ flowchart LR
 |   +-- src/context     # Auth and theme providers
 |   +-- src/pages       # App routes
 |   +-- src/lib         # Supabase client
-+-- docker-compose.yml  # Local Redis, Kafka, and Kafka UI
-+-- Dockerfile          # Backend production image
-+-- fix_rls_security.sql
++-- docker-compose.yml    # Local Redis, Kafka, and Kafka UI
++-- Dockerfile            # Backend production image
++-- fix_rls_security.sql  # Supabase Row Level Security policies
 ```
 
 ## Core API Surface
