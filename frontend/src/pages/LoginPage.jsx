@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { Mail, Lock, Sparkles, ArrowRight, Loader, Eye, EyeOff } from 'lucide-react';
 import { login } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
 import { GoogleLoginButton } from '../components/GoogleLoginButton';
+import { BrandMark } from '../components/BrandMark';
 
 export default function LoginPage() {
     const { loginUser } = useAuth();
@@ -62,23 +63,14 @@ export default function LoginPage() {
             <div className="orb orb-2" />
             <div className="orb orb-3" />
 
-            <motion.div
+            <Motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, ease: 'easeOut' }}
                 className="glass w-full max-w-md rounded-2xl p-8 relative z-10"
             >
                 <div className="text-center mb-8">
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
-                        <span style={{
-                            fontFamily: "'Grand Hotel', cursive",
-                            fontSize: '48px',
-                            lineHeight: 1
-                        }}>
-                            <span style={{ color: 'var(--text-primary)' }}>Friends</span>
-                            <span className="text-[var(--accent)]">Hub</span>
-                        </span>
-                    </div>
+                    <BrandMark />
                     <h1 className="text-2xl font-bold text-[var(--text-primary)]">
                         {isForgotPassword ? 'Reset Password' : 'Welcome back'}
                     </h1>
@@ -88,13 +80,13 @@ export default function LoginPage() {
                 </div>
 
                 {error && (
-                    <motion.div
+                    <Motion.div
                         initial={{ opacity: 0, y: -8 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 text-[12px]"
                     >
                         {error}
-                    </motion.div>
+                    </Motion.div>
                 )}
 
                 {isForgotPassword ? (
@@ -114,7 +106,7 @@ export default function LoginPage() {
                             </div>
                         </div>
 
-                        <motion.button
+                        <Motion.button
                             whileHover={{ scale: 1.01 }}
                             whileTap={{ scale: 0.99 }}
                             type="submit"
@@ -126,7 +118,7 @@ export default function LoginPage() {
                             ) : (
                                 <>Send Reset Link <ArrowRight size={15} /></>
                             )}
-                        </motion.button>
+                        </Motion.button>
 
                         <button
                             type="button"
@@ -167,6 +159,7 @@ export default function LoginPage() {
                             <div className="relative">
                                 <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                                 <input
+                                    id="login-password"
                                     type={showPassword ? 'text' : 'password'}
                                     className="input-field pl-9 pr-9 text-[13px]"
                                     placeholder="••••••••"
@@ -179,13 +172,15 @@ export default function LoginPage() {
                                     onClick={() => setShowPassword((prev) => !prev)}
                                     className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                                     aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                    aria-controls="login-password"
+                                    aria-pressed={showPassword}
                                 >
                                     {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                                 </button>
                             </div>
                         </div>
 
-                        <motion.button
+                        <Motion.button
                             whileHover={{ scale: 1.01 }}
                             whileTap={{ scale: 0.99 }}
                             type="submit"
@@ -197,7 +192,7 @@ export default function LoginPage() {
                             ) : (
                                 <>Sign In <ArrowRight size={15} /></>
                             )}
-                        </motion.button>
+                        </Motion.button>
                     </form>
                 )}
 
@@ -219,8 +214,7 @@ export default function LoginPage() {
                         </p>
                     </>
                 )}
-            </motion.div>
+            </Motion.div>
         </div>
     );
 }
-

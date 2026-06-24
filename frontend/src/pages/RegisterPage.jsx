@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Mail, Lock, UserPlus, ArrowRight, User as UserIcon, Loader, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { motion as Motion } from 'framer-motion';
+import { Mail, Lock, ArrowRight, User as UserIcon, Loader, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { register } from '../api/auth';
 import { useToast } from '../components/Toast';
+import { BrandMark } from '../components/BrandMark';
 
 export default function RegisterPage() {
     const [form, setForm] = useState({ email: '', password: '', firstName: '', lastName: '' });
@@ -13,6 +14,9 @@ export default function RegisterPage() {
     const [passwordError, setPasswordError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const toast = useToast();
+    const passwordStrength =
+        form.password.length >= 8 && /[A-Z]/.test(form.password) && /[0-9]/.test(form.password) ? 3 :
+            form.password.length >= 8 ? 2 : 1;
 
     const validatePassword = (password) => {
         if (password.length < 8) return 'Password must be at least 8 characters';
@@ -54,36 +58,27 @@ export default function RegisterPage() {
             <div className="orb orb-2" />
             <div className="orb orb-3" />
 
-            <motion.div
+            <Motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
                 className="glass w-full max-w-md rounded-2xl p-8 relative z-10"
             >
                 <div className="text-center mb-8">
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
-                        <span style={{
-                            fontFamily: "'Grand Hotel', cursive",
-                            fontSize: '48px',
-                            lineHeight: 1
-                        }}>
-                            <span style={{ color: 'var(--text-primary)' }}>Friends</span>
-                            <span className="text-[var(--accent)]">Hub</span>
-                        </span>
-                    </div>
+                    <BrandMark />
                     <h1 className="text-2xl font-bold">Create account</h1>
                     <p className="text-[12px] text-[var(--text-muted)] mt-1">Join the FriendsHub community</p>
                 </div>
 
                 {error && (
-                    <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-                        className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 text-[12px]">{error}</motion.div>
+                    <Motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+                        className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 text-[12px]">{error}</Motion.div>
                 )}
                 {success && (
-                    <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+                    <Motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
                         className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[12px] flex items-center gap-2">
                         <CheckCircle size={14} /> {success}
-                    </motion.div>
+                    </Motion.div>
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-3.5">
@@ -117,6 +112,7 @@ export default function RegisterPage() {
                         <div className="relative">
                             <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                             <input
+                                id="register-password"
                                 type={showPassword ? 'text' : 'password'}
                                 className={`input-field pl-9 pr-9 text-[13px] ${passwordError ? 'border-red-500/50' : ''}`}
                                 placeholder="Min. 8 chars, 1 uppercase, 1 number"
@@ -132,6 +128,8 @@ export default function RegisterPage() {
                                 onClick={() => setShowPassword((prev) => !prev)}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                                 aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                aria-controls="register-password"
+                                aria-pressed={showPassword}
                             >
                                 {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                             </button>
@@ -142,41 +140,36 @@ export default function RegisterPage() {
                         {/* Password strength bar */}
                         {form.password.length > 0 && (
                             <div className="flex gap-1 mt-1.5">
-                                {[1, 2, 3].map((level) => {
-                                    const strength =
-                                        form.password.length >= 8 && /[A-Z]/.test(form.password) && /[0-9]/.test(form.password) ? 3 :
-                                            form.password.length >= 8 ? 2 : 1;
-                                    return (
-                                        <div
-                                            key={level}
-                                            className={`h-1 flex-1 rounded-full transition-colors ${level <= strength
-                                                    ? strength === 1 ? 'bg-red-400'
-                                                        : strength === 2 ? 'bg-yellow-400'
-                                                            : 'bg-emerald-400'
-                                                    : 'bg-[var(--border-color)]'
-                                                }`}
-                                        />
-                                    );
-                                })}
+                                {[1, 2, 3].map((level) => (
+                                    <div
+                                        key={level}
+                                        className={`h-1 flex-1 rounded-full transition-colors ${level <= passwordStrength
+                                                ? passwordStrength === 1 ? 'bg-red-400'
+                                                    : passwordStrength === 2 ? 'bg-yellow-400'
+                                                        : 'bg-emerald-400'
+                                                : 'bg-[var(--border-color)]'
+                                            }`}
+                                    />
+                                ))}
                             </div>
                         )}
                     </div>
 
-                    <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }} type="submit" disabled={loading}
+                    <Motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }} type="submit" disabled={loading}
                         className="btn-primary w-full py-3 mt-1">
                         {loading ? (
                             <><Loader size={15} className="animate-spin" /> Creating account...</>
                         ) : (
                             <>Create Account <ArrowRight size={15} /></>
                         )}
-                    </motion.button>
+                    </Motion.button>
                 </form>
 
                 <p className="text-center text-[12px] text-[var(--text-muted)] mt-6">
                     Already have an account?{' '}
                     <Link to="/login" className="text-[var(--accent)] hover:underline font-medium">Sign in</Link>
                 </p>
-            </motion.div>
+            </Motion.div>
         </div>
     );
 }
