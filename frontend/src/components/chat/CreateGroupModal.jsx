@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search, Check, Loader } from 'lucide-react';
 import { searchChatUsers } from '../../api/chat';
+import { getSuggestions } from '../../api/users';
 import { createGroup } from '../../api/groupChat';
 import { uploadImage } from '../../api/posts';
 import { useToast } from '../Toast'; // Fixed import path
@@ -11,24 +12,59 @@ export default function CreateGroupModal({ onClose, onCreated }) {
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState('');
     const [query, setQuery] = useState('');
+    const [allUsers, setAllUsers] = useState([]);
     const [results, setResults] = useState([]);
     const [selectedUsers, setSelectedUsers] = useState([]);
     const [creating, setCreating] = useState(false);
+    const [loadingUsers, setLoadingUsers] = useState(true);
     const toast = useToast();
 
-    // Search users
+    // Load initial user list on mount
     useEffect(() => {
+        getSuggestions()
+            .then(res => {
+                const users = Array.isArray(res.data) ? res.data : [];
+                setAllUsers(users);
+                setResults(users);
+            })
+            .catch(() => { })
+            .finally(() => setLoadingUsers(false));
+    }, []);
+
+    // Filter locally as user types + debounced API search for broader results
+    useEffect(() => {
+        const trimmed = query.trim();
+
+        // Immediate local filter for instant feedback
+        if (trimmed) {
+            const lower = trimmed.toLowerCase();
+            const localFiltered = allUsers.filter(u =>
+                u.name?.toLowerCase().includes(lower) ||
+                u.username?.toLowerCase().includes(lower)
+            );
+            setResults(localFiltered);
+        } else {
+            setResults(allUsers);
+        }
+
+        // Debounced API search to broaden results beyond the initial suggestion list
         const timer = setTimeout(() => {
-            if (query.trim()) {
-                searchChatUsers(query)
-                    .then(res => setResults(Array.isArray(res.data) ? res.data : []))
+            if (trimmed) {
+                searchChatUsers(trimmed)
+                    .then(res => {
+                        const apiResults = Array.isArray(res.data) ? res.data : [];
+                        // Merge API results with local filter, deduplicated by id
+                        setResults(prev => {
+                            const ids = new Set(prev.map(u => u.id));
+                            const merged = [...prev, ...apiResults.filter(u => !ids.has(u.id))];
+                            return merged;
+                        });
+                    })
                     .catch(() => { });
-            } else {
-                setResults([]);
             }
         }, 300);
         return () => clearTimeout(timer);
-    }, [query]);
+    }, [query, allUsers]);
 
     const handleCreate = async () => {
         if (!name.trim()) return toast.error("Group name is required");
@@ -135,7 +171,15 @@ export default function CreateGroupModal({ onClose, onCreated }) {
 
                         {/* Search Results */}
                         <div className="mt-3 max-h-48 overflow-y-auto custom-scrollbar space-y-2">
-                            {results.map(user => {
+                            {loadingUsers ? (
+                                <div className="flex items-center justify-center py-6">
+                                    <Loader size={18} className="animate-spin text-[var(--text-muted)]" />
+                                </div>
+                            ) : results.length === 0 ? (
+                                <p className="text-center text-xs text-[var(--text-muted)] py-6">
+                                    {query.trim() ? 'No users found' : 'No suggestions available'}
+                                </p>
+                            ) : results.map(user => {
                                 const isSelected = selectedUsers.find(u => u.id === user.id);
                                 return (
                                     <div
