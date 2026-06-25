@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, Search, MessageCircle, Settings, Users, LogOut, PlusSquare, Moon, Sun } from 'lucide-react';
+import { Home, Search, MessageCircle, Settings, Users, LogOut, PlusSquare, Moon, Sun, Activity } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useEffect, useState } from 'react';
@@ -8,6 +8,7 @@ import { getProfile } from '../api/users';
 const links = [
     { to: '/', icon: Home, label: 'Home' },
     { to: '/search', icon: Search, label: 'Search' },
+    { to: '/activity', icon: Activity, label: 'Activity' },
     { to: '/chat', icon: MessageCircle, label: 'Messages' },
 ];
 

@@ -16,6 +16,9 @@ export const addComment = (postId, data) => api.post(`/posts/${postId}/comment`,
 
 export const getComments = (postId) => api.get(`/posts/${postId}/comments`);
 
+export const getActivityFeed = (page = 0, size = 20) =>
+    api.get(`/activity/feed?page=${page}&size=${size}`);
+
 export const uploadImage = (file, onProgress) => {
     const formData = new FormData();
     formData.append('image', file);
