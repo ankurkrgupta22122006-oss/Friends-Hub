@@ -4,6 +4,7 @@ import com.example.socialmedia.dto.FollowUserResponse;
 import com.example.socialmedia.dto.FriendRequestAnalyticsResponse;
 import com.example.socialmedia.dto.MessageResponse;
 import com.example.socialmedia.dto.NetworkGraphResponse;
+import com.example.socialmedia.dto.RecommendationResponse;
 import com.example.socialmedia.dto.SearchUserResponse;
 import com.example.socialmedia.dto.UserProfileRequest;
 import com.example.socialmedia.dto.UserProfileResponse;
@@ -153,6 +154,11 @@ public class UserController {
     @GetMapping("/blocked")
     public ResponseEntity<List<FollowUserResponse>> getBlockedUsers(Authentication authentication) {
         return ResponseEntity.ok(userService.getBlockedUsers(authentication.getName()));
+    }
+
+    @GetMapping("/recommendations")
+    public ResponseEntity<List<RecommendationResponse>> getRecommendations(Authentication authentication) {
+        return ResponseEntity.ok(userService.getRecommendations(authentication.getName()));
     }
 
     @GetMapping("/analytics/friend-requests")
