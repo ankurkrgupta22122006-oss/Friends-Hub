@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, Users, MapPin, Calendar, Loader, Camera, Grid3X3, Lock, UserPlus, UserCheck, UserX } from 'lucide-react';
+import { Settings, Users, MapPin, Calendar, Loader, Camera, Grid3X3, Lock, UserPlus, UserCheck, UserX, Network } from 'lucide-react';
+import NetworkGraph from '../components/NetworkGraph';
 import { useAuth } from '../context/AuthContext';
 import { getProfile, getUserProfileById, updateProfile, getFollowers, getFollowing, uploadProfilePic, removeProfilePicture, followUser, unfollowUser } from '../api/users';
 import { getPostsByUser } from '../api/posts';
@@ -27,6 +28,7 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [followersModal, setFollowersModal] = useState({ open: false, title: '', users: [] });
+    const [activeTab, setActiveTab] = useState('posts');
     const [posts, setPosts] = useState([]);
     const [uploadingPic, setUploadingPic] = useState(false);
     const [followingLoading, setFollowingLoading] = useState(false);
@@ -314,14 +316,32 @@ export default function ProfilePage() {
 
             {/* Content Area */}
             <div className="border-t border-[var(--border-color)]">
+                {profile?.canViewPosts && (
+                    <div className="flex items-center justify-center gap-6 py-2">
+                        {[{ id: 'posts', icon: Grid3X3, label: 'Posts' }, { id: 'network', icon: Network, label: 'Network' }].map(({ id, icon: Icon, label }) => (
+                            <button
+                                key={id}
+                                onClick={() => setActiveTab(id)}
+                                className={`flex items-center gap-1.5 py-2 px-1 text-[12px] font-semibold tracking-wider uppercase border-t-2 transition-colors cursor-pointer ${
+                                    activeTab === id
+                                        ? 'border-[var(--text-primary)] text-[var(--text-primary)]'
+                                        : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                                }`}
+                            >
+                                <Icon size={12} />
+                                <span>{label}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+
                 {profile?.canViewPosts ? (
                     <>
-                        <div className="flex items-center justify-center gap-1.5 py-3 text-[12px] font-semibold text-[var(--text-primary)] tracking-wider uppercase">
-                            <Grid3X3 size={12} />
-                            <span>Posts</span>
-                        </div>
-
-                        {posts.length === 0 ? (
+                        {activeTab === 'network' ? (
+                            <div className="p-4">
+                                <NetworkGraph profile={profile} />
+                            </div>
+                        ) : posts.length === 0 ? (
                             <div className="text-center py-16 px-4">
                                 <div className="w-16 h-16 rounded-full border border-[var(--border-color)] flex items-center justify-center mx-auto mb-3">
                                     <Camera size={30} strokeWidth={1} className="text-[var(--text-muted)]" />

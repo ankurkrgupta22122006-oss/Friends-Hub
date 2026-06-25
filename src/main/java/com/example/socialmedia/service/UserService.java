@@ -1,6 +1,7 @@
 package com.example.socialmedia.service;
 
 import com.example.socialmedia.dto.FollowUserResponse;
+import com.example.socialmedia.dto.NetworkGraphResponse;
 import com.example.socialmedia.dto.UserProfileRequest;
 import com.example.socialmedia.dto.UserProfileResponse;
 import com.example.socialmedia.entity.*;
@@ -8,7 +9,6 @@ import com.example.socialmedia.entity.Notification.NotificationType;
 import com.example.socialmedia.repository.*;
 
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -56,7 +56,7 @@ public class UserService {
     public UserProfileResponse getProfile(String email) {
         User user = getUserByEmail(email);
         UserInfo info = userInfoRepository.findByUser(user).orElse(null);
-        return buildProfileResponse(user, info, user); // can view own profile
+        return buildProfileResponse(user, info, user);
     }
 
     @Transactional(readOnly = true)
@@ -84,16 +84,11 @@ public class UserService {
         info.setLastName(request.getLastName());
         info.setBio(request.getBio());
         info.setProfilePicUrl(request.getProfilePicUrl());
-        if (request.getWebsite() != null)
-            info.setWebsite(request.getWebsite());
-        if (request.getLocation() != null)
-            info.setLocation(request.getLocation());
-        if (request.getGender() != null)
-            info.setGender(request.getGender());
-        if (request.getDob() != null)
-            info.setDob(request.getDob());
-        if (request.getPhone() != null)
-            info.setPhone(request.getPhone());
+        if (request.getWebsite() != null) info.setWebsite(request.getWebsite());
+        if (request.getLocation() != null) info.setLocation(request.getLocation());
+        if (request.getGender() != null) info.setGender(request.getGender());
+        if (request.getDob() != null) info.setDob(request.getDob());
+        if (request.getPhone() != null) info.setPhone(request.getPhone());
         if (request.getProfileVisibility() != null) {
             try {
                 info.setProfileVisibility(ProfileVisibility.valueOf(request.getProfileVisibility()));
@@ -114,12 +109,9 @@ public class UserService {
             info = new UserInfo();
             info.setUser(user);
         }
-
-        // Delete old image if it exists and is from Supabase
         if (info.getProfilePicUrl() != null) {
             storageService.deleteImage(info.getProfilePicUrl());
         }
-
         info.setProfilePicUrl(profilePicUrl);
         userInfoRepository.save(info);
         return buildProfileResponse(user, info, user);
@@ -179,7 +171,6 @@ public class UserService {
             throw new RuntimeException("You cannot follow yourself");
         }
 
-        // Block check
         if (isBlocked(follower, following) || isBlocked(following, follower)) {
             throw new RuntimeException("Action not allowed");
         }
@@ -191,7 +182,6 @@ public class UserService {
             return "Unfollowed successfully";
         }
 
-        // Private account → send follow request
         if (following.isPrivateAccount()) {
             Optional<FollowRequest> existing = followRequestRepository.findByRequesterAndTarget(follower, following);
             if (existing.isPresent()) {
@@ -263,7 +253,7 @@ public class UserService {
             throw new RuntimeException("Not authorized");
         }
         fr.setStatus(FollowRequestStatus.REJECTED);
-        followRequestRepository.delete(fr); // Prepare clean deletion for re-request
+        followRequestRepository.delete(fr);
         return "Follow request rejected";
     }
 
@@ -336,7 +326,6 @@ public class UserService {
 
         blockRepository.save(new Block(blocker, blocked));
 
-        // Auto-unfollow both directions
         followRepository.findByFollowerAndFollowing(blocker, blocked).ifPresent(followRepository::delete);
         followRepository.findByFollowerAndFollowing(blocked, blocker).ifPresent(followRepository::delete);
 
@@ -386,10 +375,62 @@ public class UserService {
     public boolean isFollowing(Long followerId, Long followingId) {
         User follower = userRepository.findById(followerId).orElse(null);
         User following = userRepository.findById(followingId).orElse(null);
-        if (follower == null || following == null)
-            return false;
+        if (follower == null || following == null) return false;
         return followRepository.findByFollowerAndFollowing(follower, following).isPresent();
     }
+
+    // ─── Network Graph ────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public NetworkGraphResponse getNetworkGraph(Long targetUserId, String requesterEmail) {
+        User requester = getUserByEmail(requesterEmail);
+        User target = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        boolean canView = target.getId().equals(requester.getId())
+                || !target.isPrivateAccount()
+                || followRepository.findByFollowerAndFollowing(requester, target).isPresent();
+        if (!canView) throw new RuntimeException("Access denied");
+
+        List<User> friends = followRepository.findByFollowerId(target.getId()).stream()
+                .map(Follow::getFollowing)
+                .collect(Collectors.toList());
+
+        java.util.Set<Long> friendIds = friends.stream().map(User::getId).collect(Collectors.toSet());
+
+        java.util.Map<Long, java.util.Set<Long>> mutualMap = new java.util.HashMap<>();
+        for (User friend : friends) {
+            followRepository.findByFollowerId(friend.getId()).forEach(f -> {
+                Long mid = f.getFollowing().getId();
+                if (!mid.equals(target.getId()) && !friendIds.contains(mid)) {
+                    mutualMap.computeIfAbsent(mid, k -> new java.util.HashSet<>()).add(friend.getId());
+                }
+            });
+        }
+
+        List<NetworkGraphResponse.MutualNodeDTO> mutuals = mutualMap.entrySet().stream()
+                .limit(20)
+                .map(e -> {
+                    User u = userRepository.findById(e.getKey()).orElse(null);
+                    if (u == null) return null;
+                    return new NetworkGraphResponse.MutualNodeDTO(
+                            u.getId(), firstName(u), u.getEmail(), picUrl(u),
+                            List.copyOf(e.getValue()));
+                })
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toList());
+
+        NetworkGraphResponse.NodeDTO centerNode = new NetworkGraphResponse.NodeDTO(
+                target.getId(), firstName(target), target.getEmail(), picUrl(target));
+
+        List<NetworkGraphResponse.NodeDTO> friendNodes = friends.stream()
+                .map(u -> new NetworkGraphResponse.NodeDTO(u.getId(), firstName(u), u.getEmail(), picUrl(u)))
+                .collect(Collectors.toList());
+
+        return new NetworkGraphResponse(centerNode, friendNodes, mutuals);
+    }
+
+    // ─── Suggestions ──────────────────────────────────────────
 
     @Transactional(readOnly = true)
     public List<FollowUserResponse> getSuggestedUsers(String email) {
@@ -401,6 +442,14 @@ public class UserService {
     }
 
     // ─── Helpers ──────────────────────────────────────────────
+
+    private String firstName(User u) {
+        return u.getUserInfo() != null ? u.getUserInfo().getFirstName() : null;
+    }
+
+    private String picUrl(User u) {
+        return u.getUserInfo() != null ? u.getUserInfo().getProfilePicUrl() : null;
+    }
 
     private String getDisplayName(User user) {
         if (user.getUserInfo() != null && user.getUserInfo().getFirstName() != null) {

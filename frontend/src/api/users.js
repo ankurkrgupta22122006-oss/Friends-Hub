@@ -33,3 +33,4 @@ export const blockUser = (userId) => api.post(`/users/${userId}/block`);
 export const unblockUser = (userId) => api.post(`/users/${userId}/unblock`);
 export const getBlockedUsers = () => api.get('/users/blocked');
 export const getSuggestions = () => api.get('/users/suggestions');
+export const getNetworkGraph = (userId) => api.get(`/users/${userId}/network`);

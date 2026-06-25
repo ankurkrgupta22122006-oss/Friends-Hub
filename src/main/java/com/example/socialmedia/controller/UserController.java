@@ -2,6 +2,7 @@ package com.example.socialmedia.controller;
 
 import com.example.socialmedia.dto.FollowUserResponse;
 import com.example.socialmedia.dto.MessageResponse;
+import com.example.socialmedia.dto.NetworkGraphResponse;
 import com.example.socialmedia.dto.UserProfileRequest;
 import com.example.socialmedia.dto.UserProfileResponse;
 import com.example.socialmedia.service.SupabaseStorageService;
@@ -146,6 +147,13 @@ public class UserController {
     @GetMapping("/blocked")
     public ResponseEntity<List<FollowUserResponse>> getBlockedUsers(Authentication authentication) {
         return ResponseEntity.ok(userService.getBlockedUsers(authentication.getName()));
+    }
+
+    @GetMapping("/{userId}/network")
+    public ResponseEntity<NetworkGraphResponse> getNetworkGraph(
+            @PathVariable Long userId,
+            Authentication authentication) {
+        return ResponseEntity.ok(userService.getNetworkGraph(userId, authentication.getName()));
     }
 
     @GetMapping("/suggestions")
