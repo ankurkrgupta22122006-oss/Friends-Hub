@@ -22,4 +22,18 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT u FROM User u WHERE u.id != :userId AND u.id NOT IN (SELECT f.following.id FROM Follow f WHERE f.follower.id = :userId) AND u.verificationStatus = 'VERIFIED'")
     List<User> findSuggestedUsers(@Param("userId") Long userId, Pageable pageable);
+
+    @Query("SELECT u FROM User u LEFT JOIN u.userInfo ui " +
+           "WHERE u.id != :requesterId " +
+           "AND u.verificationStatus = 'VERIFIED' " +
+           "AND (:query IS NULL OR :query = '' OR LOWER(ui.firstName) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "     OR LOWER(ui.lastName) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "     OR LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%'))) " +
+           "AND (:location IS NULL OR :location = '' OR LOWER(ui.location) LIKE LOWER(CONCAT('%', :location, '%'))) " +
+           "AND (:bio IS NULL OR :bio = '' OR LOWER(ui.bio) LIKE LOWER(CONCAT('%', :bio, '%')))")
+    List<User> searchUsers(@Param("requesterId") Long requesterId,
+                           @Param("query") String query,
+                           @Param("location") String location,
+                           @Param("bio") String bio,
+                           Pageable pageable);
 }

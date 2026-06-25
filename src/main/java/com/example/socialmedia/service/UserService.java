@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -428,6 +429,48 @@ public class UserService {
                 .collect(Collectors.toList());
 
         return new NetworkGraphResponse(centerNode, friendNodes, mutuals);
+    }
+
+    // ─── Smart Search ──────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<SearchUserResponse> searchUsers(String requesterEmail, String query,
+                                                String location, String bio,
+                                                boolean mutualOnly, String sort) {
+        User requester = getUserByEmail(requesterEmail);
+        List<User> results = userRepository.searchUsers(
+                requester.getId(), query, location, bio, PageRequest.of(0, 50));
+
+        Set<Long> myFollowingIds = followRepository.findByFollowerId(requester.getId())
+                .stream().map(f -> f.getFollowing().getId()).collect(Collectors.toSet());
+
+        List<SearchUserResponse> mapped = results.stream().map(u -> {
+            // count mutuals: people I follow who also follow this user
+            long mutual = followRepository.findByFollowingId(u.getId()).stream()
+                    .filter(f -> myFollowingIds.contains(f.getFollower().getId()))
+                    .count();
+            boolean following = myFollowingIds.contains(u.getId());
+            String name = u.getUserInfo() != null
+                    ? ((u.getUserInfo().getFirstName() != null ? u.getUserInfo().getFirstName() : "") +
+                       " " + (u.getUserInfo().getLastName() != null ? u.getUserInfo().getLastName() : "")).trim()
+                    : u.getEmail();
+            String loc = u.getUserInfo() != null ? u.getUserInfo().getLocation() : null;
+            String userBio = u.getUserInfo() != null ? u.getUserInfo().getBio() : null;
+            String pic = u.getUserInfo() != null ? u.getUserInfo().getProfilePicUrl() : null;
+            return new SearchUserResponse(u.getId(), name, u.getEmail(), pic, loc, userBio, (int) mutual, following);
+        }).collect(Collectors.toList());
+
+        if (mutualOnly) {
+            mapped = mapped.stream().filter(r -> r.getMutualCount() > 0).collect(Collectors.toList());
+        }
+
+        if ("mutual".equals(sort)) {
+            mapped.sort((a, b) -> Integer.compare(b.getMutualCount(), a.getMutualCount()));
+        } else if ("name".equals(sort)) {
+            mapped.sort((a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+        }
+
+        return mapped;
     }
 
     // ─── Suggestions ──────────────────────────────────────────
