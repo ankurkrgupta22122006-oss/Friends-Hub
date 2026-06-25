@@ -25,4 +25,15 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
         @Modifying
         @Query("UPDATE ChatMessage m SET m.isRead = true WHERE m.sender = :sender AND m.receiver = :receiver AND m.isRead = false")
         int markMessagesAsRead(@Param("sender") User sender, @Param("receiver") User receiver);
+
+        @Query("SELECT COUNT(m) FROM ChatMessage m WHERE " +
+                        "(m.sender = :user1 AND m.receiver = :user2) OR " +
+                        "(m.sender = :user2 AND m.receiver = :user1)")
+        long countConversation(@Param("user1") User user1, @Param("user2") User user2);
+
+        @Query("SELECT FUNCTION('DAYOFWEEK', m.timestamp), COUNT(m) FROM ChatMessage m WHERE " +
+                        "((m.sender = :user1 AND m.receiver = :user2) OR (m.sender = :user2 AND m.receiver = :user1)) " +
+                        "AND m.timestamp >= :since GROUP BY FUNCTION('DAYOFWEEK', m.timestamp)")
+        List<Object[]> countByDayOfWeek(@Param("user1") User user1, @Param("user2") User user2,
+                        @Param("since") java.time.LocalDateTime since);
 }
