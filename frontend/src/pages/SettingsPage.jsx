@@ -1,20 +1,22 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Shield, Lock, UserX, Bell, ChevronRight, Loader2, Save, ArrowLeft } from 'lucide-react';
+import { User, Shield, Lock, UserX, Bell, ChevronRight, Loader2, Save, ArrowLeft, BarChart2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getProfile, updateProfileSettings } from '../api/users';
 import PrivacyToggle from '../components/PrivacyToggle';
 import BlockedUsersList from '../components/BlockedUsersList';
 import FollowRequestsPanel from '../components/FollowRequestsPanel';
 import ProfileCompletenessBar from '../components/ProfileCompletenessBar';
+import FriendRequestAnalytics from '../components/FriendRequestAnalytics';
 import { useToast } from '../components/Toast';
 
 const TABS = [
-    { id: 'profile', label: 'Profile Info', icon: User },
-    { id: 'privacy', label: 'Privacy', icon: Lock },
-    { id: 'requests', label: 'Follow Requests', icon: Bell },
-    { id: 'blocked', label: 'Blocked Users', icon: UserX },
-    { id: 'account', label: 'Account Type', icon: Shield },
+    { id: 'profile',   label: 'Profile Info',      icon: User },
+    { id: 'privacy',   label: 'Privacy',            icon: Lock },
+    { id: 'requests',  label: 'Follow Requests',    icon: Bell },
+    { id: 'analytics', label: 'Analytics',          icon: BarChart2 },
+    { id: 'blocked',   label: 'Blocked Users',      icon: UserX },
+    { id: 'account',   label: 'Account Type',       icon: Shield },
 ];
 
 export default function SettingsPage() {
@@ -208,6 +210,10 @@ export default function SettingsPage() {
 
                             {activeTab === 'requests' && (
                                 <FollowRequestsPanel />
+                            )}
+
+                            {activeTab === 'analytics' && (
+                                <FriendRequestAnalytics />
                             )}
 
                             {activeTab === 'blocked' && (

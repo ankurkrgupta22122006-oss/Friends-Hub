@@ -1,11 +1,13 @@
 package com.example.socialmedia.controller;
 
 import com.example.socialmedia.dto.FollowUserResponse;
+import com.example.socialmedia.dto.FriendRequestAnalyticsResponse;
 import com.example.socialmedia.dto.MessageResponse;
 import com.example.socialmedia.dto.NetworkGraphResponse;
 import com.example.socialmedia.dto.SearchUserResponse;
 import com.example.socialmedia.dto.UserProfileRequest;
 import com.example.socialmedia.dto.UserProfileResponse;
+import com.example.socialmedia.service.FriendRequestAnalyticsService;
 import com.example.socialmedia.service.SupabaseStorageService;
 import com.example.socialmedia.service.UserService;
 import org.springframework.http.ResponseEntity;
@@ -22,10 +24,13 @@ public class UserController {
 
     private final UserService userService;
     private final SupabaseStorageService storageService;
+    private final FriendRequestAnalyticsService analyticsService;
 
-    public UserController(UserService userService, SupabaseStorageService storageService) {
+    public UserController(UserService userService, SupabaseStorageService storageService,
+                          FriendRequestAnalyticsService analyticsService) {
         this.userService = userService;
         this.storageService = storageService;
+        this.analyticsService = analyticsService;
     }
 
     @GetMapping("/profile")
@@ -148,6 +153,11 @@ public class UserController {
     @GetMapping("/blocked")
     public ResponseEntity<List<FollowUserResponse>> getBlockedUsers(Authentication authentication) {
         return ResponseEntity.ok(userService.getBlockedUsers(authentication.getName()));
+    }
+
+    @GetMapping("/analytics/friend-requests")
+    public ResponseEntity<FriendRequestAnalyticsResponse> getFriendRequestAnalytics(Authentication authentication) {
+        return ResponseEntity.ok(analyticsService.getAnalytics(authentication.getName()));
     }
 
     @GetMapping("/search")
