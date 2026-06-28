@@ -6,6 +6,7 @@ import NetworkGraph from '../components/NetworkGraph';
 import FriendStats from '../components/FriendStats';
 import ProfileCompletenessBar from '../components/ProfileCompletenessBar';
 import FriendshipMilestones from '../components/FriendshipMilestones';
+import MutualFriendsPanel from '../components/MutualFriendsPanel';
 import { useAuth } from '../context/AuthContext';
 import { getProfile, getUserProfileById, updateProfile, getFollowers, getFollowing, uploadProfilePic, removeProfilePicture, followUser, unfollowUser } from '../api/users';
 import { getPostsByUser } from '../api/posts';
@@ -281,6 +282,9 @@ export default function ProfilePage() {
                         <StatItem count={posts.length} label="posts" />
                         <StatItem count={profile?.followerCount || 0} label="followers" onClick={showFollowers} />
                         <StatItem count={profile?.followingCount || 0} label="following" onClick={showFollowing} />
+                        {!isOwnProfile && profile?.mutualFriendCount > 0 && (
+                            <StatItem count={profile?.mutualFriendCount || 0} label="mutual friends" />
+                        )}
                     </div>
 
                     {/* Bio */}
@@ -312,6 +316,11 @@ export default function ProfilePage() {
                                 )}
                                 <span className="flex items-center gap-1"><Calendar size={12} /> Joined {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'recently'}</span>
                             </div>
+
+                            {/* Mutual Friends Panel — only shown on other users' profiles */}
+                            {!isOwnProfile && (
+                                <MutualFriendsPanel targetUserId={profile?.userId} />
+                            )}
                         </div>
                     )}
                 </div>

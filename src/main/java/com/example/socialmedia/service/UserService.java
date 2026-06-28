@@ -145,6 +145,14 @@ public class UserService {
         boolean isFollowRequested = followRequestRepository.findByRequesterAndTarget(requester, user).isPresent();
         boolean canViewPosts = isMe || !user.isPrivateAccount() || isFollowing;
 
+        // Calculate mutual friends count: people the requester follows who also follow the target user
+        Set<Long> myFollowingIds = followRepository.findByFollowerId(requester.getId())
+                .stream().map(f -> f.getFollowing().getId()).collect(Collectors.toSet());
+        int mutualFriendCount = (int) followRepository.findByFollowingId(user.getId()).stream()
+                .map(Follow::getFollower)
+                .filter(u -> myFollowingIds.contains(u.getId()))
+                .count();
+
         return UserProfileResponse.builder()
                 .userId(user.getId())
                 .email(user.getEmail())
@@ -158,6 +166,7 @@ public class UserService {
                 .isFollowing(isFollowing)
                 .isFollowRequested(isFollowRequested)
                 .canViewPosts(canViewPosts)
+                .mutualFriendCount(mutualFriendCount)
                 .role(user.getRole())
                 .build();
     }
@@ -475,6 +484,24 @@ public class UserService {
         return mapped;
     }
 
+    // ─── Mutual Friends ───────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<FollowUserResponse> getMutualFriends(Long targetUserId, String requesterEmail) {
+        User requester = getUserByEmail(requesterEmail);
+        User target = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Set<Long> myFollowingIds = followRepository.findByFollowerId(requester.getId())
+                .stream().map(f -> f.getFollowing().getId()).collect(Collectors.toSet());
+
+        return followRepository.findByFollowingId(target.getId()).stream()
+                .map(Follow::getFollower)
+                .filter(u -> myFollowingIds.contains(u.getId()))
+                .map(this::mapToFollowUserResponse)
+                .collect(Collectors.toList());
+    }
+
     // ─── Recommendations ──────────────────────────────────────
 
     @Transactional(readOnly = true)
@@ -578,6 +605,6 @@ public class UserService {
         } else {
             name = user.getEmail();
         }
-        return new FollowUserResponse(user.getId(), name, profilePicUrl);
+        return new FollowUserResponse(user.getId(), name, profilePicUrl, user.getEmail());
     }
 }

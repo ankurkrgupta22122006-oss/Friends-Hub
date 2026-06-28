@@ -178,6 +178,13 @@ public class UserController {
                 authentication.getName(), query, location, bio, mutualOnly, sort));
     }
 
+    @GetMapping("/{userId}/mutuals")
+    public ResponseEntity<List<FollowUserResponse>> getMutualFriends(
+            @PathVariable Long userId,
+            Authentication authentication) {
+        return ResponseEntity.ok(userService.getMutualFriends(userId, authentication.getName()));
+    }
+
     @GetMapping("/{userId}/network")
     public ResponseEntity<NetworkGraphResponse> getNetworkGraph(
             @PathVariable Long userId,
