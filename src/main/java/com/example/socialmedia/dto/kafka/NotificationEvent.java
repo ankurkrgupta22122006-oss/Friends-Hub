@@ -2,13 +2,11 @@ package com.example.socialmedia.dto.kafka;
 
 import java.time.Instant;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class NotificationEvent {
     private String type;          // "LIKE", "COMMENT", "FOLLOW", "MESSAGE", "FOLLOW_REQUEST"
     private Long actorId;         // who did the action

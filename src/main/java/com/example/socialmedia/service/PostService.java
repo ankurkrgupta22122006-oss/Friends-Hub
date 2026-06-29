@@ -27,7 +27,6 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import lombok.extern.slf4j.Slf4j;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +35,6 @@ import java.time.Instant;
 import java.util.List;
 
 @Service
-@Slf4j
 @CacheConfig(cacheNames = "posts")
 public class PostService {
         private static final Logger log =

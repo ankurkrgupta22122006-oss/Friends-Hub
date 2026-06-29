@@ -1,6 +1,5 @@
 package com.example.socialmedia.service;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -8,7 +7,6 @@ import java.time.Duration;
 import java.util.*;
 
 @Service
-@RequiredArgsConstructor
 public class PresenceService {
 
     private final RedisTemplate<String, String> redisTemplate;
