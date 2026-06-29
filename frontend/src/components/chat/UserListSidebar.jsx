@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Search, MessageCircle, Plus } from 'lucide-react';
@@ -9,22 +9,36 @@ export default function UserListSidebar({ conversations, activeUserId, onSelectU
     const [searchResults, setSearchResults] = useState([]);
     const [searching, setSearching] = useState(false);
 
-    const handleSearch = async (q) => {
+    const debounceRef = useRef(null);
+
+    const handleSearch = (q) => {
         setSearch(q);
+
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+
         if (q.trim().length < 2) {
             setSearchResults([]);
             return;
         }
-        setSearching(true);
-        try {
-            const res = await searchChatUsers(q);
-            setSearchResults(Array.isArray(res.data) ? res.data : []);
-        } catch {
-            setSearchResults([]);
-        } finally {
-            setSearching(false);
-        }
+
+        debounceRef.current = setTimeout(async () => {
+            setSearching(true);
+            try {
+                const res = await searchChatUsers(q);
+                setSearchResults(Array.isArray(res.data) ? res.data : []);
+            } catch {
+                setSearchResults([]);
+            } finally {
+                setSearching(false);
+            }
+        }, 300);
     };
+
+    useEffect(() => {
+        return () => {
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+        };
+    }, []);
 
     const displayList = search.trim().length >= 2 ? searchResults : conversations;
     const isOnline = (userId) => onlineUsers.includes(userId);

@@ -7,6 +7,7 @@ import com.example.socialmedia.entity.UserInfo;
 import com.example.socialmedia.entity.Notification.NotificationType;
 import com.example.socialmedia.repository.ChatMessageRepository;
 import com.example.socialmedia.repository.UserRepository;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -120,15 +121,11 @@ public class ChatService {
 
     @Transactional(readOnly = true)
     public List<ChatPartnerDTO> searchUsers(String query, String currentEmail) {
-        return userRepo.findAll().stream()
-                .filter(u -> !u.getEmail().equals(currentEmail))
-                .filter(u -> {
-                    String name = getDisplayName(u).toLowerCase();
-                    String email = u.getEmail().toLowerCase();
-                    String q = query.toLowerCase();
-                    return name.contains(q) || email.contains(q);
-                })
-                .limit(20)
+        User currentUser = userRepo.findByEmail(currentEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return userRepo.searchUsers(currentUser.getId(), query, null, null, PageRequest.of(0, 20))
+                .stream()
                 .map(u -> new ChatPartnerDTO(u.getId(), getDisplayName(u), u.getEmail(), isOnline(u.getId())))
                 .collect(Collectors.toList());
     }
