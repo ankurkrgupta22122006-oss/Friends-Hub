@@ -33,3 +33,7 @@ export const blockUser = (userId) => api.post(`/users/${userId}/block`);
 export const unblockUser = (userId) => api.post(`/users/${userId}/unblock`);
 export const getBlockedUsers = () => api.get('/users/blocked');
 export const getSuggestions = () => api.get('/users/suggestions');
+export const getNetworkGraph = (userId) => api.get(`/users/${userId}/network`);
+export const searchUsers = (params) => api.get('/users/search', { params });
+export const getFriendStats = (userId) => api.get(`/stats/friend/${userId}`);
+export const getFriendRequestAnalytics = () => api.get('/users/analytics/friend-requests');
