@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Home, Search, PlusSquare, MessageCircle, User } from 'lucide-react';
+import { Home, Search, PlusSquare, MessageCircle, Activity } from 'lucide-react';
 
 export default function BottomNav({ onCreatePost }) {
     return (
@@ -24,9 +24,9 @@ export default function BottomNav({ onCreatePost }) {
                     </button>
                 </div>
 
-                <NavLink to="/chat" className={({ isActive }) =>
+                <NavLink to="/activity" className={({ isActive }) =>
                     `flex flex-col items-center py-1.5 px-3 transition-colors ${isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}>
-                    {({ isActive }) => <MessageCircle size={24} strokeWidth={isActive ? 2.5 : 1.5} />}
+                    {({ isActive }) => <Activity size={24} strokeWidth={isActive ? 2.5 : 1.5} />}
                 </NavLink>
 
                 <NavLink to="/profile" className={({ isActive }) =>

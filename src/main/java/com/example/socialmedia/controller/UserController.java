@@ -4,6 +4,7 @@ import com.example.socialmedia.dto.FollowUserResponse;
 import com.example.socialmedia.dto.FriendRequestAnalyticsResponse;
 import com.example.socialmedia.dto.MessageResponse;
 import com.example.socialmedia.dto.NetworkGraphResponse;
+import com.example.socialmedia.dto.RecommendationResponse;
 import com.example.socialmedia.dto.SearchUserResponse;
 import com.example.socialmedia.dto.UserProfileRequest;
 import com.example.socialmedia.dto.UserProfileResponse;
@@ -155,6 +156,11 @@ public class UserController {
         return ResponseEntity.ok(userService.getBlockedUsers(authentication.getName()));
     }
 
+    @GetMapping("/recommendations")
+    public ResponseEntity<List<RecommendationResponse>> getRecommendations(Authentication authentication) {
+        return ResponseEntity.ok(userService.getRecommendations(authentication.getName()));
+    }
+
     @GetMapping("/analytics/friend-requests")
     public ResponseEntity<FriendRequestAnalyticsResponse> getFriendRequestAnalytics(Authentication authentication) {
         return ResponseEntity.ok(analyticsService.getAnalytics(authentication.getName()));
@@ -170,6 +176,13 @@ public class UserController {
             Authentication authentication) {
         return ResponseEntity.ok(userService.searchUsers(
                 authentication.getName(), query, location, bio, mutualOnly, sort));
+    }
+
+    @GetMapping("/{userId}/mutuals")
+    public ResponseEntity<List<FollowUserResponse>> getMutualFriends(
+            @PathVariable Long userId,
+            Authentication authentication) {
+        return ResponseEntity.ok(userService.getMutualFriends(userId, authentication.getName()));
     }
 
     @GetMapping("/{userId}/network")

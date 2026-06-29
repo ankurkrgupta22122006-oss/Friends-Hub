@@ -37,3 +37,6 @@ export const getNetworkGraph = (userId) => api.get(`/users/${userId}/network`);
 export const searchUsers = (params) => api.get('/users/search', { params });
 export const getFriendStats = (userId) => api.get(`/stats/friend/${userId}`);
 export const getFriendRequestAnalytics = () => api.get('/users/analytics/friend-requests');
+export const getRecommendations = () => api.get('/users/recommendations');
+export const getMilestones = (userId) => api.get(`/milestones/${userId}`);
+export const getMutualFriends = (userId) => api.get(`/users/${userId}/mutuals`);

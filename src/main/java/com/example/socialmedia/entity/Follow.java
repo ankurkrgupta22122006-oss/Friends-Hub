@@ -1,6 +1,8 @@
 package com.example.socialmedia.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "follows", uniqueConstraints = {
@@ -20,6 +22,10 @@ public class Follow {
     @JoinColumn(name = "following_id", nullable = false)
     private User following;
 
+    @CreationTimestamp
+    @Column(updatable = false)
+    private LocalDateTime createdAt;
+
     public Follow() {
     }
 
@@ -29,27 +35,12 @@ public class Follow {
         this.following = following;
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public User getFollower() {
-        return follower;
-    }
-
-    public void setFollower(User follower) {
-        this.follower = follower;
-    }
-
-    public User getFollowing() {
-        return following;
-    }
-
-    public void setFollowing(User following) {
-        this.following = following;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public User getFollower() { return follower; }
+    public void setFollower(User follower) { this.follower = follower; }
+    public User getFollowing() { return following; }
+    public void setFollowing(User following) { this.following = following; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

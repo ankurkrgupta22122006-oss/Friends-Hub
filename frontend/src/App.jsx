@@ -21,6 +21,7 @@ const ChatPage = lazy(() => import('./pages/ChatPage'));
 const GroupChatPage = lazy(() => import('./pages/GroupChatPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const SearchPage = lazy(() => import('./pages/SearchPage'));
+const ActivityFeedPage = lazy(() => import('./pages/ActivityFeedPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 const PageLoader = () => (
@@ -57,6 +58,7 @@ export default function App() {
                   <Route path="/chat" element={<ChatPage />} />
                   <Route path="/groups" element={<GroupChatPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/activity" element={<ActivityFeedPage />} />
                 </Route>
 
                 <Route path="*" element={<NotFoundPage />} />

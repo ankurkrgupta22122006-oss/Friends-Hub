@@ -2,6 +2,8 @@ package com.example.socialmedia.service;
 
 import com.example.socialmedia.dto.FollowUserResponse;
 import com.example.socialmedia.dto.NetworkGraphResponse;
+import com.example.socialmedia.dto.RecommendationResponse;
+import com.example.socialmedia.dto.SearchUserResponse;
 import com.example.socialmedia.dto.UserProfileRequest;
 import com.example.socialmedia.dto.UserProfileResponse;
 import com.example.socialmedia.entity.*;
@@ -143,6 +145,14 @@ public class UserService {
         boolean isFollowRequested = followRequestRepository.findByRequesterAndTarget(requester, user).isPresent();
         boolean canViewPosts = isMe || !user.isPrivateAccount() || isFollowing;
 
+        // Calculate mutual friends count: people the requester follows who also follow the target user
+        Set<Long> myFollowingIds = followRepository.findByFollowerId(requester.getId())
+                .stream().map(f -> f.getFollowing().getId()).collect(Collectors.toSet());
+        int mutualFriendCount = (int) followRepository.findByFollowingId(user.getId()).stream()
+                .map(Follow::getFollower)
+                .filter(u -> myFollowingIds.contains(u.getId()))
+                .count();
+
         return UserProfileResponse.builder()
                 .userId(user.getId())
                 .email(user.getEmail())
@@ -156,6 +166,7 @@ public class UserService {
                 .isFollowing(isFollowing)
                 .isFollowRequested(isFollowRequested)
                 .canViewPosts(canViewPosts)
+                .mutualFriendCount(mutualFriendCount)
                 .role(user.getRole())
                 .build();
     }
@@ -473,6 +484,89 @@ public class UserService {
         return mapped;
     }
 
+    // ─── Mutual Friends ───────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<FollowUserResponse> getMutualFriends(Long targetUserId, String requesterEmail) {
+        User requester = getUserByEmail(requesterEmail);
+        User target = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Set<Long> myFollowingIds = followRepository.findByFollowerId(requester.getId())
+                .stream().map(f -> f.getFollowing().getId()).collect(Collectors.toSet());
+
+        return followRepository.findByFollowingId(target.getId()).stream()
+                .map(Follow::getFollower)
+                .filter(u -> myFollowingIds.contains(u.getId()))
+                .map(this::mapToFollowUserResponse)
+                .collect(Collectors.toList());
+    }
+
+    // ─── Recommendations ──────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<RecommendationResponse> getRecommendations(String email) {
+        User me = getUserByEmail(email);
+        Set<String> myKeywords = extractKeywords(me.getUserInfo() != null ? me.getUserInfo().getBio() : null);
+        String myLocation = me.getUserInfo() != null ? me.getUserInfo().getLocation() : null;
+        Set<Long> myFollowingIds = followRepository.findByFollowerId(me.getId())
+                .stream().map(f -> f.getFollowing().getId()).collect(Collectors.toSet());
+        List<User> candidates = userRepository.findRecommendationCandidates(me.getId(), PageRequest.of(0, 100));
+        return candidates.stream()
+                .map(u -> scoreUser(u, myKeywords, myLocation, myFollowingIds))
+                .filter(r -> r.getMatchScore() > 0)
+                .sorted((a, b) -> Integer.compare(b.getMatchScore(), a.getMatchScore()))
+                .limit(10)
+                .collect(Collectors.toList());
+    }
+
+    private RecommendationResponse scoreUser(User u, Set<String> myKeywords, String myLocation,
+                                             Set<Long> myFollowingIds) {
+        int score = 0;
+        java.util.List<String> reasons = new java.util.ArrayList<>();
+        UserInfo info = u.getUserInfo();
+
+        long mutuals = followRepository.findByFollowingId(u.getId()).stream()
+                .filter(f -> myFollowingIds.contains(f.getFollower().getId())).count();
+        if (mutuals > 0) {
+            score += (int) Math.min(mutuals * 15, 45);
+            reasons.add(mutuals + " mutual friend" + (mutuals > 1 ? "s" : ""));
+        }
+
+        String theirLoc = info != null ? info.getLocation() : null;
+        if (myLocation != null && theirLoc != null && myLocation.trim().equalsIgnoreCase(theirLoc.trim())) {
+            score += 25;
+            reasons.add("Same location");
+        }
+
+        Set<String> sharedKeywords = extractKeywords(info != null ? info.getBio() : null);
+        sharedKeywords.retainAll(myKeywords);
+        if (!sharedKeywords.isEmpty()) {
+            score += Math.min(sharedKeywords.size() * 10, 30);
+            reasons.add("Shared interests: " + String.join(", ", sharedKeywords));
+        }
+
+        if (info != null && info.getProfilePicUrl() != null) score += 5;
+
+        String name = info != null
+                ? ((info.getFirstName() != null ? info.getFirstName() : "") + " "
+                   + (info.getLastName() != null ? info.getLastName() : "")).trim()
+                : u.getEmail();
+        if (name.isBlank()) name = u.getEmail();
+
+        return new RecommendationResponse(u.getId(), name, u.getEmail(),
+                info != null ? info.getProfilePicUrl() : null,
+                theirLoc, info != null ? info.getBio() : null,
+                score, reasons);
+    }
+
+    private Set<String> extractKeywords(String text) {
+        if (text == null || text.isBlank()) return new java.util.HashSet<>();
+        return java.util.Arrays.stream(text.toLowerCase().split("[^a-z0-9]+"))
+                .filter(w -> w.length() > 3)
+                .collect(Collectors.toSet());
+    }
+
     // ─── Suggestions ──────────────────────────────────────────
 
     @Transactional(readOnly = true)
@@ -511,6 +605,6 @@ public class UserService {
         } else {
             name = user.getEmail();
         }
-        return new FollowUserResponse(user.getId(), name, profilePicUrl);
+        return new FollowUserResponse(user.getId(), name, profilePicUrl, user.getEmail());
     }
 }

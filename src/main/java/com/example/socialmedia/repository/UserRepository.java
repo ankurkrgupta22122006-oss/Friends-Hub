@@ -36,4 +36,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
                            @Param("location") String location,
                            @Param("bio") String bio,
                            Pageable pageable);
+    @Query("SELECT u FROM User u WHERE u.id != :userId AND u.verificationStatus = 'VERIFIED' " +
+           "AND u.id NOT IN (SELECT f.following.id FROM Follow f WHERE f.follower.id = :userId) " +
+           "AND u.id NOT IN (SELECT b.blocked.id FROM Block b WHERE b.blocker.id = :userId) " +
+           "AND u.id NOT IN (SELECT b.blocker.id FROM Block b WHERE b.blocked.id = :userId)")
+    List<User> findRecommendationCandidates(@Param("userId") Long userId, Pageable pageable);
 }

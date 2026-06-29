@@ -29,10 +29,11 @@ public class UserProfileResponse {
     private boolean followRequested;
 
     private boolean canViewPosts;
+    private int mutualFriendCount;
 
     public UserProfileResponse(Long userId, String email, Role role, String firstName, String lastName, String bio,
             String city, String profilePicUrl, long followerCount, long followingCount, boolean privateAccount,
-            boolean following, boolean followRequested, boolean canViewPosts) {
+            boolean following, boolean followRequested, boolean canViewPosts, int mutualFriendCount) {
         this.userId = userId;
         this.email = email;
         this.role = role;
@@ -47,6 +48,7 @@ public class UserProfileResponse {
         this.following = following;
         this.followRequested = followRequested;
         this.canViewPosts = canViewPosts;
+        this.mutualFriendCount = mutualFriendCount;
     }
 
     public static UserProfileResponseBuilder builder() {
@@ -68,6 +70,7 @@ public class UserProfileResponse {
         private boolean following;
         private boolean followRequested;
         private boolean canViewPosts;
+        private int mutualFriendCount;
 
         UserProfileResponseBuilder() {
         }
@@ -142,9 +145,14 @@ public class UserProfileResponse {
             return this;
         }
 
+        public UserProfileResponseBuilder mutualFriendCount(int mutualFriendCount) {
+            this.mutualFriendCount = mutualFriendCount;
+            return this;
+        }
+
         public UserProfileResponse build() {
             return new UserProfileResponse(userId, email, role, firstName, lastName, bio, city, profilePicUrl,
-                    followerCount, followingCount, privateAccount, following, followRequested, canViewPosts);
+                    followerCount, followingCount, privateAccount, following, followRequested, canViewPosts, mutualFriendCount);
         }
     }
 }
