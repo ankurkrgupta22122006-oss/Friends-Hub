@@ -245,7 +245,12 @@ export default function PostCard({ post, currentEmail, currentUserId, onDelete }
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                     >
-                        <CommentSection postId={post.id} onCommentAdded={() => setCommentCount((c) => c + 1)} />
+                        <CommentSection
+                            postId={post.id}
+                            currentUserId={currentUserId}
+                            onCommentAdded={() => setCommentCount((c) => c + 1)}
+                            onCommentDeleted={() => setCommentCount((c) => Math.max(0, c - 1))}
+                        />
                     </motion.div>
                 )}
             </AnimatePresence>

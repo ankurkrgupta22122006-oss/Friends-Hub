@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { Send, Loader } from 'lucide-react';
-import { getComments, addComment } from '../api/posts';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Send, Loader, MoreHorizontal, Trash2 } from 'lucide-react';
+import { getComments, addComment, deleteComment } from '../api/posts';
 import { useToast } from './Toast';
 
 function timeAgo(dateStr) {
@@ -17,7 +17,7 @@ function timeAgo(dateStr) {
     return `${Math.floor(hours / 24)}d`;
 }
 
-export default function CommentSection({ postId, onCommentAdded }) {
+export default function CommentSection({ postId, currentUserId, onCommentAdded, onCommentDeleted }) {
     const [comments, setComments] = useState([]);
     const [page, setPage] = useState(0);
     const [hasMore, setHasMore] = useState(false);
@@ -66,6 +66,19 @@ export default function CommentSection({ postId, onCommentAdded }) {
         }
     };
 
+    const handleDeleteComment = async (commentId) => {
+        const prevComments = comments;
+        setComments((prev) => prev.filter((c) => c.id !== commentId));
+        try {
+            await deleteComment(commentId);
+            onCommentDeleted?.();
+        } catch {
+            setComments(prevComments);
+            toast.error('Failed to delete comment');
+        }
+    };
+
+
     return (
         <div className="border-t border-[var(--border-color)]">
             <div className="max-h-60 overflow-y-auto px-4 py-2 space-y-2">
@@ -76,30 +89,42 @@ export default function CommentSection({ postId, onCommentAdded }) {
                 ) : comments.length === 0 ? (
                     <p className="text-[13px] text-[var(--text-muted)] text-center py-3">No comments yet</p>
                 ) : (
-                    comments.map((c, idx) => (
-                        <motion.div
-                            key={c.id || idx}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: idx * 0.03 }}
-                            className="flex gap-2.5 items-start"
-                        >
-                            <div className="avatar w-7 h-7 text-[9px] flex-shrink-0 mt-0.5">
-                                {c.authorProfilePic ? (
-                                    <img src={c.authorProfilePic} alt="" className="w-full h-full object-cover rounded-full" />
-                                ) : (c.authorName?.charAt(0)?.toUpperCase() || '?')}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[13px] text-[var(--text-primary)] leading-snug">
-                                    <span className="font-semibold mr-1.5">{c.authorName}</span>
-                                    <span className="text-[var(--text-secondary)] font-normal">{c.content}</span>
-                                </p>
-                                <div className="flex gap-3 mt-0.5">
-                                    <span className="text-[11px] text-[var(--text-muted)]">{timeAgo(c.createdAt)}</span>
+                    comments.map((c, idx) => {
+                        const isOwnComment = currentUserId != null && String(c.commenterId) === String(currentUserId);
+                        return (
+                            <motion.div
+                                key={c.id || idx}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: idx * 0.03 }}
+                                className="flex gap-2.5 items-start group"
+                            >
+                                <div className="avatar w-7 h-7 text-[9px] flex-shrink-0 mt-0.5">
+                                    {c.authorProfilePic ? (
+                                        <img src={c.authorProfilePic} alt="" className="w-full h-full object-cover rounded-full" />
+                                    ) : (c.commenterName?.charAt(0)?.toUpperCase() || '?')}
                                 </div>
-                            </div>
-                        </motion.div>
-                    ))
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[13px] text-[var(--text-primary)] leading-snug">
+                                        <span className="font-semibold mr-1.5">{c.commenterName}</span>
+                                        <span className="text-[var(--text-secondary)] font-normal">{c.content}</span>
+                                    </p>
+                                    <div className="flex gap-3 mt-0.5">
+                                        <span className="text-[11px] text-[var(--text-muted)]">{timeAgo(c.createdAt)}</span>
+                                    </div>
+                                </div>
+                                {isOwnComment && (
+                                    <button
+                                        onClick={() => handleDeleteComment(c.id)}
+                                        className="p-1 opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-[var(--danger)] transition-all cursor-pointer flex-shrink-0"
+                                        title="Delete comment"
+                                    >
+                                        <Trash2 size={13} />
+                                    </button>
+                                )}
+                            </motion.div>
+                        );
+                    })
                 )}
 
                 {hasMore && (

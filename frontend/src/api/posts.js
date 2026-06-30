@@ -16,6 +16,8 @@ export const addComment = (postId, data) => api.post(`/posts/${postId}/comment`,
 
 export const getComments = (postId) => api.get(`/posts/${postId}/comments`);
 
+export const deleteComment = (commentId) => api.delete(`/comments/${commentId}`);
+
 export const getActivityFeed = (page = 0, size = 20) =>
     api.get(`/activity/feed?page=${page}&size=${size}`);
 

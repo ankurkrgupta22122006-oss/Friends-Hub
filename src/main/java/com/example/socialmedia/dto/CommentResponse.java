@@ -6,15 +6,17 @@ public class CommentResponse {
     private Long id;
     private String content;
     private String commenterName;
+    private Long commenterId;
     private LocalDateTime createdAt;
 
     public CommentResponse() {
     }
 
-    public CommentResponse(Long id, String content, String commenterName, LocalDateTime createdAt) {
+    public CommentResponse(Long id, String content, String commenterName, Long commenterId, LocalDateTime createdAt) {
         this.id = id;
         this.content = content;
         this.commenterName = commenterName;
+        this.commenterId = commenterId;
         this.createdAt = createdAt;
     }
 
@@ -40,6 +42,14 @@ public class CommentResponse {
 
     public void setCommenterName(String commenterName) {
         this.commenterName = commenterName;
+    }
+
+    public Long getCommenterId() {
+        return commenterId;
+    }
+
+    public void setCommenterId(Long commenterId) {
+        this.commenterId = commenterId;
     }
 
     public LocalDateTime getCreatedAt() {
