@@ -34,6 +34,10 @@ public class Notification {
     @JoinColumn(name = "actor_id")
     private User actor;
 
+    // Optional: the post this notification relates to (for LIKE/COMMENT), used for deep-linking
+    @Column(name = "post_id")
+    private Long postId;
+
     public Notification() {
     }
 
@@ -42,6 +46,14 @@ public class Notification {
         this.type = type;
         this.content = content;
         this.actor = actor;
+    }
+
+    public Notification(User user, NotificationType type, String content, User actor, Long postId) {
+        this.user = user;
+        this.type = type;
+        this.content = content;
+        this.actor = actor;
+        this.postId = postId;
     }
 
     // Getters and Setters
@@ -99,6 +111,14 @@ public class Notification {
 
     public void setActor(User actor) {
         this.actor = actor;
+    }
+
+    public Long getPostId() {
+        return postId;
+    }
+
+    public void setPostId(Long postId) {
+        this.postId = postId;
     }
 
     public enum NotificationType {
