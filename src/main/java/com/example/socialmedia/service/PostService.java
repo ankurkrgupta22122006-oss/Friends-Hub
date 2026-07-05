@@ -244,6 +244,7 @@ public class PostService {
                                                         comment.getId(),
                                                         comment.getContent(),
                                                         name,
+                                                        comment.getUser().getId(),
                                                         comment.getCreatedAt());
                                 });
         }
