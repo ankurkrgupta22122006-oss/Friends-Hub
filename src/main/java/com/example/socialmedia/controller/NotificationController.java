@@ -33,4 +33,13 @@ public class NotificationController {
         int count = notificationService.markAllAsRead(authentication.getName());
         return ResponseEntity.ok(Map.of("marked", count));
     }
+
+    @PostMapping("/{id}/mark-read")
+    public ResponseEntity<Map<String, Object>> markOneAsRead(@PathVariable Long id, Authentication authentication) {
+        boolean updated = notificationService.markOneAsRead(id, authentication.getName());
+        if (!updated) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(Map.of("marked", true));
+    }
 }

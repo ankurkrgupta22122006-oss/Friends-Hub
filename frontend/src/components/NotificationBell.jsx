@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Heart, MessageSquare, UserPlus, Send, Check, X } from 'lucide-react';
-import { getNotifications, getUnreadCount, markNotificationsRead } from '../api/notifications';
+import { getNotifications, getUnreadCount, markNotificationsRead, markNotificationRead } from '../api/notifications';
 import { acceptFollowRequestFromUser, rejectFollowRequestFromUser } from '../api/users';
+import { useNavigate } from 'react-router-dom';
 
 const typeIcons = {
     LIKE: { icon: Heart, color: 'text-rose-400', bg: 'bg-rose-400/10' },
@@ -32,6 +33,7 @@ export default function NotificationBell({ newNotification }) {
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
     const dropdownRef = useRef(null);
+    const navigate = useNavigate();
 
     // Fetch unread count on mount
     useEffect(() => {
@@ -103,6 +105,40 @@ export default function NotificationBell({ newNotification }) {
             setUnreadCount(c => Math.max(0, c - 1));
         } catch (error) {
             console.error(error);
+        }
+    };
+
+    const handleNotificationClick = async (notification) => {
+        // Mark this one as read (optimistic update)
+        if (!notification.isRead) {
+            setNotifications(prev => prev.map(n =>
+                n.id === notification.id ? { ...n, isRead: true } : n
+            ));
+            setUnreadCount(c => Math.max(0, c - 1));
+            try {
+                await markNotificationRead(notification.id);
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        setOpen(false);
+
+        // Navigate based on notification type
+        switch (notification.type) {
+            case 'FOLLOW':
+            case 'FOLLOW_REQUEST':
+                if (notification.actorId) navigate(`/profile/${notification.actorId}`);
+                break;
+            case 'MESSAGE':
+                if (notification.actorId) navigate(`/chat?userId=${notification.actorId}`);
+                break;
+            case 'LIKE':
+            case 'COMMENT':
+                // No single-post view exists yet in this app — no-op until that route is added
+                break;
+            default:
+                break;
         }
     };
 
@@ -181,7 +217,8 @@ export default function NotificationBell({ newNotification }) {
                                             initial={{ opacity: 0, x: -10 }}
                                             animate={{ opacity: 1, x: 0 }}
                                             transition={{ delay: idx * 0.02 }}
-                                            className={`flex items-start gap-3 px-4 py-3 border-b border-[var(--border-color)]/50 transition-colors ${!n.isRead ? 'bg-[var(--accent-light)]' : 'hover:bg-[var(--bg-elevated)]'
+                                            onClick={() => handleNotificationClick(n)}
+                                            className={`flex items-start gap-3 px-4 py-3 border-b border-[var(--border-color)]/50 transition-colors cursor-pointer ${!n.isRead ? 'bg-[var(--accent-light)]' : 'hover:bg-[var(--bg-elevated)]'
                                                 }`}
                                         >
                                             <div className={`w-8 h-8 rounded-lg ${typeInfo.bg} flex items-center justify-center flex-shrink-0`}>

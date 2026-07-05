@@ -29,11 +29,15 @@ public class NotificationService {
     }
 
     public void createNotification(User targetUser, NotificationType type, String content, User actor) {
+        createNotification(targetUser, type, content, actor, null);
+    }
+
+    public void createNotification(User targetUser, NotificationType type, String content, User actor, Long postId) {
         // Don't notify yourself
         if (targetUser.getId().equals(actor.getId()))
             return;
 
-        Notification notification = new Notification(targetUser, type, content, actor);
+        Notification notification = new Notification(targetUser, type, content, actor, postId);
         notificationRepo.save(notification);
 
         // Push realtime via WebSocket
@@ -65,6 +69,14 @@ public class NotificationService {
         return notificationRepo.markAllAsRead(user);
     }
 
+    @Transactional
+    public boolean markOneAsRead(Long notificationId, String email) {
+        User user = userRepo.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        int updated = notificationRepo.markOneAsRead(notificationId, user);
+        return updated > 0;
+    }
+
     private String getDisplayName(User user) {
         UserInfo info = user.getUserInfo();
         if (info != null && info.getFirstName() != null && !info.getFirstName().isEmpty()) {
@@ -81,7 +93,8 @@ public class NotificationService {
                 n.getIsRead(),
                 n.getCreatedAt().toString(),
                 n.getActor() != null ? n.getActor().getId() : null,
-                n.getActor() != null ? getDisplayName(n.getActor()) : null);
+                n.getActor() != null ? getDisplayName(n.getActor()) : null,
+                n.getPostId());
     }
 
     // DTO
@@ -93,9 +106,10 @@ public class NotificationService {
         private String createdAt;
         private Long actorId;
         private String actorName;
+        private Long postId;
 
         public NotificationDTO(Long id, String type, String content, Boolean isRead,
-                String createdAt, Long actorId, String actorName) {
+                String createdAt, Long actorId, String actorName, Long postId) {
             this.id = id;
             this.type = type;
             this.content = content;
@@ -103,6 +117,7 @@ public class NotificationService {
             this.createdAt = createdAt;
             this.actorId = actorId;
             this.actorName = actorName;
+            this.postId = postId;
         }
 
         public Long getId() {
@@ -131,6 +146,10 @@ public class NotificationService {
 
         public String getActorName() {
             return actorName;
+        }
+
+        public Long getPostId() {
+            return postId;
         }
     }
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getChatConversations, getOnlineUsers } from '../api/chat';
 import { connectChat, disconnectChat } from '../socket/chatSocket';
@@ -9,6 +10,7 @@ import ChatWindow from '../components/chat/ChatWindow';
 export default function ChatPage() {
     const { user } = useAuth();
     const currentUserId = user?.id;
+    const [searchParams] = useSearchParams();
     const [conversations, setConversations] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -21,7 +23,22 @@ export default function ChatPage() {
         if (!currentUserId) return;
 
         getChatConversations()
-            .then((res) => setConversations(Array.isArray(res.data) ? res.data : []))
+            .then((res) => {
+                const list = Array.isArray(res.data) ? res.data : [];
+                setConversations(list);
+
+                // Deep-link: auto-open conversation if ?userId= is present
+                const targetUserId = searchParams.get('userId');
+                if (targetUserId) {
+                    const existing = list.find((c) => String(c.id) === String(targetUserId));
+                    if (existing) {
+                        setSelectedUser(existing);
+                    } else {
+                        // Not an existing conversation yet (e.g. first message) — open with minimal info
+                        setSelectedUser({ id: Number(targetUserId) });
+                    }
+                }
+            })
             .catch(() => { });
 
         // Initial online users fetch

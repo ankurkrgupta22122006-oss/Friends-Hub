@@ -5,3 +5,5 @@ export const getNotifications = () => api.get('/notifications');
 export const getUnreadCount = () => api.get('/notifications/unread-count');
 
 export const markNotificationsRead = () => api.post('/notifications/mark-read');
+
+export const markNotificationRead = (id) => api.post(`/notifications/${id}/mark-read`);
