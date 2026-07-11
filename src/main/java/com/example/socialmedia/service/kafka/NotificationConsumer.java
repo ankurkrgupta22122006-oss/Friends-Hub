@@ -45,16 +45,42 @@ public class NotificationConsumer {
     public void handleNotification(NotificationEvent event,
                                    @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
+            // Validate required fields to prevent NullPointerException crashes
+            if (event == null) {
+                log.error("Received null notification event, skipping");
+                return;
+            }
+            if (event.getActorId() == null) {
+                log.error("Notification event missing actorId, skipping: {}", event);
+                return;
+            }
+            if (event.getTargetUserId() == null) {
+                log.error("Notification event missing targetUserId, skipping: {}", event);
+                return;
+            }
+            if (event.getType() == null || event.getType().trim().isEmpty()) {
+                log.error("Notification event missing or empty type, skipping: {}", event);
+                return;
+            }
+
             // 1. Find users
             User actor = userRepository.findById(event.getActorId())
                     .orElseThrow(() -> new RuntimeException("Actor not found: " + event.getActorId()));
             User targetUser = userRepository.findById(event.getTargetUserId())
                     .orElseThrow(() -> new RuntimeException("Target user not found: " + event.getTargetUserId()));
 
+            // Validate notification type before enum conversion
+            try {
+                Notification.NotificationType.valueOf(event.getType());
+            } catch (IllegalArgumentException e) {
+                log.error("Invalid notification type '{}', skipping event", event.getType());
+                return;
+            }
+
             // 2. Persist to DB
             Notification saved = notificationRepository.save(
                     new Notification(targetUser, Notification.NotificationType.valueOf(event.getType()),
-                            event.getContent(), actor)
+                            event.getContent() != null ? event.getContent() : "", actor)
             );
 
             // 3. If user is online, push via WebSocket immediately
@@ -70,9 +96,13 @@ public class NotificationConsumer {
             log.info("Notification event processed: type={}, actor={}, target={}",
                     event.getType(), event.getActorId(), event.getTargetUserId());
 
+        } catch (RuntimeException e) {
+            // Log but don't rethrow for missing users (they may be deleted).
+            // This prevents Kafka consumer from getting stuck in infinite retry loop.
+            log.warn("Failed to process notification event due to missing entity: {}", e.getMessage());
         } catch (Exception e) {
-            log.error("Failed processing notification event: {}", e.getMessage(), e);
-            throw e; // Rethrow = Kafka will retry based on retry config
+            // For unexpected errors, log and skip rather than crash the consumer
+            log.error("Unexpected error processing notification event: {}", e.getMessage(), e);
         }
     }
 
