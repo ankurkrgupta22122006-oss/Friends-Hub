@@ -28,24 +28,60 @@ public class StompHeaderInterceptor implements ChannelInterceptor {
             @org.springframework.lang.NonNull MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
-        if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
-            String authHeader = accessor.getFirstNativeHeader("Authorization");
+        if (accessor == null) {
+            return message;
+        }
 
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                String jwt = authHeader.substring(7);
-                String userEmail = jwtService.extractUsername(jwt);
+        // Validate token on CONNECT frame - initial WebSocket handshake
+        if (StompCommand.CONNECT.equals(accessor.getCommand())) {
+            validateAndSetAuthentication(accessor);
+        }
+        // Validate token on SUBSCRIBE frame - re-verify before allowing channel subscription
+        // This prevents revoked tokens from accessing private channels after logout
+        else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+            org.springframework.security.core.Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated()) {
+                accessor.setHeader("access-denied-reason", "Token has been revoked. Please reconnect.");
+                return null; // Reject message
+            }
+            // Re-validate to ensure token hasn't been blacklisted since CONNECT
+            validateAndSetAuthentication(accessor);
+        }
+        // Validate token on SEND frame as additional safeguard
+        else if (StompCommand.SEND.equals(accessor.getCommand())) {
+            org.springframework.security.core.Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated()) {
+                accessor.setHeader("access-denied-reason", "Token has been revoked.");
+                return null; // Reject message
+            }
+        }
 
-                if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+        return message;
+    }
+
+    private void validateAndSetAuthentication(StompHeaderAccessor accessor) {
+        String authHeader = accessor.getFirstNativeHeader("Authorization");
+
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String jwt = authHeader.substring(7);
+            String userEmail = jwtService.extractUsername(jwt);
+
+            if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                try {
                     UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
 
                     if (jwtService.isTokenValid(jwt, userDetails)) {
                         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                                 userDetails, null, userDetails.getAuthorities());
                         accessor.setUser(authToken);
+                        SecurityContextHolder.getContext().setAuthentication(authToken);
                     }
+                } catch (Exception e) {
+                    // Log auth failure but don't crash - will be handled as unauthenticated
+                    org.slf4j.LoggerFactory.getLogger(this.getClass())
+                            .warn("WebSocket authentication failed: {}", e.getMessage());
                 }
             }
         }
-        return message;
     }
 }
