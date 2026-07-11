@@ -24,36 +24,43 @@ public class AdminController {
     }
 
     @GetMapping("/users")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<List<FollowUserResponse>> getAllUsers() {
         return ResponseEntity.ok(adminService.getAllUsers());
     }
 
     @DeleteMapping("/users/{id}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<Map<String, String>> deleteUser(@PathVariable Long id, Authentication authentication) {
         return ResponseEntity.ok(Map.of("message", adminService.deleteUser(id, authentication.getName())));
     }
 
     @PostMapping("/block/{id}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<Map<String, String>> blockUser(@PathVariable Long id, Authentication authentication) {
         return ResponseEntity.ok(Map.of("message", adminService.adminBlockUser(id, authentication.getName())));
     }
 
     @PostMapping("/unblock/{id}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<Map<String, String>> unblockUser(@PathVariable Long id, Authentication authentication) {
         return ResponseEntity.ok(Map.of("message", adminService.adminUnblockUser(id, authentication.getName())));
     }
 
     @DeleteMapping("/posts/{id}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<Map<String, String>> deletePost(@PathVariable Long id, Authentication authentication) {
         return ResponseEntity.ok(Map.of("message", adminService.deletePost(id, authentication.getName())));
     }
 
     @DeleteMapping("/comments/{id}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<Map<String, String>> deleteComment(@PathVariable Long id, Authentication authentication) {
         return ResponseEntity.ok(Map.of("message", adminService.deleteComment(id, authentication.getName())));
     }
 
     @GetMapping("/logs")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<List<AdminActionLog>> getActionLogs() {
         return ResponseEntity.ok(adminService.getActionLogs());
     }
