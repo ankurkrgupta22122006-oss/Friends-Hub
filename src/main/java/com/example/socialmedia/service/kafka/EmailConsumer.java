@@ -36,6 +36,20 @@ public class EmailConsumer {
     @KafkaListener(topics = "email-queue", groupId = "email-workers", concurrency = "2")
     public void handleEmail(EmailEvent event) {
         try {
+            // Validate required fields to prevent NullPointerException crashes
+            if (event == null) {
+                log.error("Received null email event, skipping");
+                return;
+            }
+            if (event.getTo() == null || event.getTo().trim().isEmpty()) {
+                log.error("Email event missing 'to' address, skipping: {}", event);
+                return;
+            }
+            if (event.getSubject() == null || event.getSubject().trim().isEmpty()) {
+                log.error("Email event missing subject, skipping for recipient: {}", event.getTo());
+                return;
+            }
+
             SimpleMailMessage message = new SimpleMailMessage();
             message.setTo(event.getTo());
             message.setSubject(event.getSubject());
@@ -48,7 +62,7 @@ public class EmailConsumer {
             log.info("Email sent successfully to {}", event.getTo());
 
         } catch (Exception e) {
-            log.error("Email send failed for {}: {}", event.getTo(), e.getMessage());
+            log.error("Email send failed: {}", e.getMessage());
             // Don't rethrow for email - you don't want infinite retries on bad addresses
         }
     }
