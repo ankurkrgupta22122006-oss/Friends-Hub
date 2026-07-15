@@ -4,10 +4,12 @@ import com.example.socialmedia.dto.AuthResponse;
 import com.example.socialmedia.dto.MessageResponse;
 import com.example.socialmedia.dto.LoginRequest;
 import com.example.socialmedia.dto.RegisterRequest;
+import com.example.socialmedia.security.JwtService;
 import com.example.socialmedia.service.AuthService;
 
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
@@ -16,9 +18,11 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final JwtService jwtService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, JwtService jwtService) {
         this.authService = authService;
+        this.jwtService = jwtService;
     }
 
     @PostMapping("/register")
@@ -59,5 +63,15 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refresh(org.springframework.security.core.Authentication authentication) {
         return ResponseEntity.ok(authService.refreshToken(authentication.getName()));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(@RequestHeader("Authorization") String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            jwtService.blacklistToken(token);
+            return ResponseEntity.ok(new MessageResponse("Logged out successfully. Token has been revoked."));
+        }
+        return ResponseEntity.badRequest().body(new MessageResponse("Invalid authorization header"));
     }
 }
