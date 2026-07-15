@@ -54,7 +54,10 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/ws/**").permitAll()
-                        .requestMatchers("/actuator/health").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        // Metrics, prometheus, and other actuator endpoints require ADMIN role.
+                        // This prevents unauthorized access to sensitive system information
+                        // (JVM memory, active sessions, database connections, Kafka consumer lag, etc.)
                         .requestMatchers("/actuator/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
