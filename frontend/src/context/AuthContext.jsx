@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { decodeToken } from './jwtDecode';
+import { getOrCreateIdentity } from '../crypto/e2ee';
 
 const AuthContext = createContext(null);
 
@@ -15,6 +16,9 @@ export function AuthProvider({ children }) {
                     email: decoded.sub,
                     id: decoded.userId || decoded.id,
                     role: decoded.role
+                });
+                getOrCreateIdentity().catch((err) => {
+                    console.error("Failed to initialize E2EE key:", err);
                 });
             } else {
                 // Token invalid or expired — auto logout

@@ -38,7 +38,7 @@ public class ChatController {
         }
         String senderEmail = authentication.getName();
         ChatMessageDTO message = chatService.sendMessage(senderEmail, request.getReceiverId(),
-                request.getContent(), request.getImageUrl());
+                request.getContent(), request.getImageUrl(), request.getIv());
 
         messagingTemplate.convertAndSend("/queue/messages-" + request.getReceiverId(), message);
         messagingTemplate.convertAndSend("/queue/messages-" + message.getSenderId(), message);
@@ -86,7 +86,7 @@ public class ChatController {
     public ResponseEntity<ChatMessageDTO> sendMessageRest(
             @RequestBody ChatSendRequest request, Authentication authentication) {
         ChatMessageDTO message = chatService.sendMessage(authentication.getName(),
-                request.getReceiverId(), request.getContent(), request.getImageUrl());
+                request.getReceiverId(), request.getContent(), request.getImageUrl(), request.getIv());
         messagingTemplate.convertAndSend("/queue/messages-" + request.getReceiverId(), message);
         return ResponseEntity.ok(message);
     }
@@ -129,6 +129,7 @@ public class ChatController {
         private String content;
         private String senderEmail;
         private String imageUrl;
+        private String iv;
 
         public Long getReceiverId() {
             return receiverId;
@@ -160,6 +161,14 @@ public class ChatController {
 
         public void setImageUrl(String imageUrl) {
             this.imageUrl = imageUrl;
+        }
+
+        public String getIv() {
+            return iv;
+        }
+
+        public void setIv(String iv) {
+            this.iv = iv;
         }
     }
 

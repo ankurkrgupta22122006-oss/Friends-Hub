@@ -58,11 +58,16 @@ public class User {
     @Column(name="auth_provider")
     private AuthProvider authProvider = AuthProvider.LOCAL;
 
+    private String publicKey;
+
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
 
     public AuthProvider getAuthProvider() { return authProvider; }
     public void setAuthProvider(AuthProvider authProvider) { this.authProvider = authProvider; }
+
+    public String getPublicKey() { return publicKey; }
+    public void setPublicKey(String publicKey) { this.publicKey = publicKey; }
 
     // Relationships
 

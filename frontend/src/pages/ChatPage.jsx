@@ -6,6 +6,7 @@ import { getChatConversations, getOnlineUsers } from '../api/chat';
 import { connectChat, disconnectChat } from '../socket/chatSocket';
 import UserListSidebar from '../components/chat/UserListSidebar';
 import ChatWindow from '../components/chat/ChatWindow';
+import { getPublicKeyForUser, decryptMessage } from '../crypto/e2ee';
 
 export default function ChatPage() {
     const { user } = useAuth();
@@ -52,7 +53,7 @@ export default function ChatPage() {
         if (!currentUserId) return;
 
         connectChat(currentUserId, {
-            onMessage: (msg) => {
+            onMessage: async (msg) => {
                 // Handle different message types
                 if (msg.type === 'delete') {
                     setMessages((prev) =>
@@ -68,9 +69,22 @@ export default function ChatPage() {
                     return;
                 }
                 // Regular message
+                let processedMsg = msg;
+                if (msg.content && msg.iv) {
+                    try {
+                        const peerId = msg.senderId === currentUserId ? msg.receiverId : msg.senderId;
+                        const peerPublicKey = await getPublicKeyForUser(peerId);
+                        const plaintext = await decryptMessage(msg.content, msg.iv, peerPublicKey);
+                        processedMsg = { ...msg, content: plaintext };
+                    } catch (err) {
+                        console.error("Error decrypting incoming message:", err);
+                        processedMsg = { ...msg, content: "[Unable to decrypt this message]" };
+                    }
+                }
+
                 setMessages((prev) => {
-                    if (prev.some((m) => m.id === msg.id)) return prev;
-                    return [...prev, msg];
+                    if (prev.some((m) => m.id === processedMsg.id)) return prev;
+                    return [...prev, processedMsg];
                 });
                 // Update conversations if new partner
                 setConversations((prev) => {

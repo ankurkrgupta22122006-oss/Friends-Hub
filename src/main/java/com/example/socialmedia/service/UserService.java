@@ -2,6 +2,7 @@ package com.example.socialmedia.service;
 
 import com.example.socialmedia.dto.FollowUserResponse;
 import com.example.socialmedia.dto.NetworkGraphResponse;
+import com.example.socialmedia.dto.PublicKeyResponse;
 import com.example.socialmedia.dto.RecommendationResponse;
 import com.example.socialmedia.dto.SearchUserResponse;
 import com.example.socialmedia.dto.UserProfileRequest;
@@ -576,6 +577,20 @@ public class UserService {
                 .stream()
                 .map(this::mapToFollowUserResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void updatePublicKey(String email, String publicKey) {
+        User user = getUserByEmail(email);
+        user.setPublicKey(publicKey);
+        userRepository.save(user);
+    }
+
+    @Transactional(readOnly = true)
+    public PublicKeyResponse getPublicKey(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return new PublicKeyResponse(user.getPublicKey());
     }
 
     // ─── Helpers ──────────────────────────────────────────────

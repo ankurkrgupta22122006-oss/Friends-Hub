@@ -13,6 +13,7 @@ public class ChatMessageDTO {
     private String receiverName;
     private String receiverEmail;
     private String content;
+    private String iv;
     private String imageUrl;
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime timestamp;
@@ -25,7 +26,7 @@ public class ChatMessageDTO {
 
     public ChatMessageDTO(Long id, Long senderId, String senderName, String senderEmail,
             Long receiverId, String receiverName, String receiverEmail,
-            String content, String imageUrl, LocalDateTime timestamp,
+            String content, String iv, String imageUrl, LocalDateTime timestamp,
             Boolean isRead, Boolean isDeleted) {
         this.id = id;
         this.senderId = senderId;
@@ -35,6 +36,7 @@ public class ChatMessageDTO {
         this.receiverName = receiverName;
         this.receiverEmail = receiverEmail;
         this.content = content;
+        this.iv = iv;
         this.imageUrl = imageUrl;
         this.timestamp = timestamp;
         this.isRead = isRead;
@@ -105,6 +107,14 @@ public class ChatMessageDTO {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public String getIv() {
+        return iv;
+    }
+
+    public void setIv(String iv) {
+        this.iv = iv;
     }
 
     public String getImageUrl() {

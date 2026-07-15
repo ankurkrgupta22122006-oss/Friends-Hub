@@ -4,6 +4,8 @@ import com.example.socialmedia.dto.FollowUserResponse;
 import com.example.socialmedia.dto.FriendRequestAnalyticsResponse;
 import com.example.socialmedia.dto.MessageResponse;
 import com.example.socialmedia.dto.NetworkGraphResponse;
+import com.example.socialmedia.dto.PublicKeyRequest;
+import com.example.socialmedia.dto.PublicKeyResponse;
 import com.example.socialmedia.dto.RecommendationResponse;
 import com.example.socialmedia.dto.SearchUserResponse;
 import com.example.socialmedia.dto.UserProfileRequest;
@@ -195,5 +197,20 @@ public class UserController {
     @GetMapping("/suggestions")
     public ResponseEntity<List<FollowUserResponse>> getSuggestedUsers(Authentication authentication) {
         return ResponseEntity.ok(userService.getSuggestedUsers(authentication.getName()));
+    }
+
+    @PutMapping("/me/public-key")
+    public ResponseEntity<MessageResponse> updatePublicKey(
+            @RequestBody PublicKeyRequest request,
+            Authentication authentication) {
+        userService.updatePublicKey(authentication.getName(), request.getPublicKey());
+        return ResponseEntity.ok(new MessageResponse("Public key updated"));
+    }
+
+    @GetMapping("/{userId}/public-key")
+    public ResponseEntity<PublicKeyResponse> getPublicKey(
+            @PathVariable Long userId,
+            Authentication authentication) {
+        return ResponseEntity.ok(userService.getPublicKey(userId));
     }
 }

@@ -51,13 +51,14 @@ public class ChatService {
     }
 
     // ===== Messaging =====
-    public ChatMessageDTO sendMessage(String senderEmail, Long receiverId, String content, String imageUrl) {
+    public ChatMessageDTO sendMessage(String senderEmail, Long receiverId, String content, String imageUrl, String iv) {
         User sender = userRepo.findByEmail(senderEmail)
                 .orElseThrow(() -> new RuntimeException("Sender not found"));
         User receiver = userRepo.findById(receiverId)
                 .orElseThrow(() -> new RuntimeException("Receiver not found"));
 
         ChatMessage message = new ChatMessage(sender, receiver, content);
+        message.setIv(iv);
         message.setImageUrl(imageUrl);
         ChatMessage saved = chatRepo.save(message);
 
@@ -100,6 +101,7 @@ public class ChatService {
         }
         msg.setIsDeleted(true);
         msg.setContent("This message was deleted");
+        msg.setIv(null);
         chatRepo.save(msg);
         return toDTO(msg);
     }
@@ -149,6 +151,7 @@ public class ChatService {
                 getDisplayName(msg.getReceiver()),
                 msg.getReceiver().getEmail(),
                 msg.getContent(),
+                msg.getIv(),
                 msg.getImageUrl(),
                 msg.getTimestamp(),
                 msg.getIsRead(),

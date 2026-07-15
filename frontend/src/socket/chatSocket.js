@@ -53,11 +53,11 @@ export function connectChat(userId, { onMessage, onTyping, onOnlineUsers, onConn
     return stompClient;
 }
 
-export function sendChatMessage(receiverId, content, senderEmail, imageUrl) {
+export function sendChatMessage(receiverId, ciphertext, iv, senderEmail, imageUrl) {
     if (stompClient?.connected) {
         stompClient.publish({
             destination: '/app/chat.send',
-            body: JSON.stringify({ receiverId, content, senderEmail, imageUrl }),
+            body: JSON.stringify({ receiverId, content: ciphertext, iv, senderEmail, imageUrl }),
         });
     }
 }

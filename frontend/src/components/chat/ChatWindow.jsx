@@ -8,6 +8,7 @@ import { uploadImage } from '../../api/posts';
 import { sendChatMessage, sendTypingIndicator, isConnected } from '../../socket/chatSocket';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
+import { getPublicKeyForUser, encryptMessage, decryptMessage } from '../../crypto/e2ee';
 
 export default function ChatWindow({
     selectedUser,
@@ -37,8 +38,26 @@ export default function ChatWindow({
 
         setLoading(true);
         getMessages(selectedUser.id)
-            .then(res => {
-                setMessages(Array.isArray(res.data) ? res.data : []);
+            .then(async (res) => {
+                const raw = Array.isArray(res.data) ? res.data : [];
+                const decryptedArray = await Promise.all(
+                    raw.map(async (msg) => {
+                        if (!msg.content || !msg.iv) {
+                            return msg;
+                        }
+                        try {
+                            const activeUserId = currentUser?.id || currentUserId;
+                            const peerId = msg.senderId === activeUserId ? msg.receiverId : msg.senderId;
+                            const peerPublicKey = await getPublicKeyForUser(peerId);
+                            const plaintext = await decryptMessage(msg.content, msg.iv, peerPublicKey);
+                            return { ...msg, content: plaintext };
+                        } catch (err) {
+                            console.error("Error decrypting message:", err);
+                            return { ...msg, content: "[Unable to decrypt this message]" };
+                        }
+                    })
+                );
+                setMessages(decryptedArray);
             })
             .catch(() => {
                 toast.error("Failed to load chat history");
@@ -46,7 +65,7 @@ export default function ChatWindow({
             .finally(() => {
                 setLoading(false);
             });
-    }, [selectedUser?.id, setMessages]);
+    }, [selectedUser?.id, setMessages, currentUser?.id, currentUserId]);
 
     // Scroll to bottom
     useEffect(() => {
@@ -66,23 +85,36 @@ export default function ChatWindow({
                 imageUrl = uploadRes.data.imageUrl;
             }
 
+            const receiverPublicKey = await getPublicKeyForUser(selectedUser.id);
+            if (!receiverPublicKey) {
+                toast.error("This user hasn't set up encryption yet");
+                return;
+            }
+
+            const { ciphertext, iv } = await encryptMessage(messageText, receiverPublicKey);
+
             if (imageUrl || !isConnected()) {
-                const res = await sendMessageRest(selectedUser.id, messageText, imageUrl);
+                const res = await sendMessageRest(selectedUser.id, ciphertext, imageUrl, iv);
                 const sentMessage = res.data || {
-                    id: Date.now(), 
+                    id: Date.now(),
                     senderId: currentUser?.id,
                     receiverId: selectedUser.id,
                     content: messageText,
                     imageUrl: imageUrl,
+                    iv: null,
                     sentAt: new Date().toISOString(),
                     isRead: false,
                 };
+                const optimisticMsg = {
+                    ...sentMessage,
+                    content: messageText,
+                };
                 setMessages((prev) => {
-                    if (prev.some((m) => m.id === sentMessage.id)) return prev;
-                    return [...prev, sentMessage];
+                    if (prev.some((m) => m.id === optimisticMsg.id)) return prev;
+                    return [...prev, optimisticMsg];
                 });
             } else {
-                sendChatMessage(selectedUser.id, messageText, currentUser?.email, imageUrl);
+                sendChatMessage(selectedUser.id, ciphertext, iv, currentUser?.email, imageUrl);
             }
 
             setText('');

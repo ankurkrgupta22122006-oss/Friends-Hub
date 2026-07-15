@@ -7,8 +7,8 @@ export const getChatConversations = () => api.get('/chat/conversations');
 
 export const searchChatUsers = (query) => api.get(`/chat/users/search?query=${encodeURIComponent(query)}`);
 
-export const sendMessageRest = (receiverId, content, imageUrl) =>
-    api.post('/chat/send', { receiverId, content, imageUrl });
+export const sendMessageRest = (receiverId, content, imageUrl, iv) =>
+    api.post('/chat/send', { receiverId, content, imageUrl, iv });
 
 export const markMessagesAsRead = (senderUserId) => api.post(`/chat/read/${senderUserId}`);
 
