@@ -164,9 +164,9 @@ public class ChatGroupService {
         String lastMsg = "";
         java.time.LocalDateTime lastTime = null;
 
-        List<ChatGroupMessage> msgs = messageRepo.findByGroupIdOrderByCreatedAtAsc(group.getId());
-        if (!msgs.isEmpty()) {
-            ChatGroupMessage latest = msgs.get(msgs.size() - 1);
+        var latestOpt = messageRepo.findTopByGroupIdOrderByCreatedAtDesc(group.getId());
+        if (latestOpt.isPresent()) {
+            ChatGroupMessage latest = latestOpt.get();
             lastMsg = latest.getIsDeleted() ? "Message deleted"
                     : (latest.getContent() != null && !latest.getContent().isEmpty()) ? latest.getContent() : "Image";
             lastTime = latest.getCreatedAt();

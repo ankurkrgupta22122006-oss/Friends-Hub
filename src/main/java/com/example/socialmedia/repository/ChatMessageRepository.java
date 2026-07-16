@@ -19,7 +19,7 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
                         "ORDER BY m.timestamp ASC")
         List<ChatMessage> findConversation(@Param("user1") User user1, @Param("user2") User user2);
 
-        @Query("SELECT DISTINCT u FROM User u WHERE u IN (SELECT m.receiver FROM ChatMessage m WHERE m.sender = :user) OR u IN (SELECT m.sender FROM ChatMessage m WHERE m.receiver = :user)")
+        @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.userInfo WHERE u IN (SELECT m.receiver FROM ChatMessage m WHERE m.sender = :user) OR u IN (SELECT m.sender FROM ChatMessage m WHERE m.receiver = :user)")
         List<User> findChatPartners(@Param("user") User user);
 
         @Modifying
