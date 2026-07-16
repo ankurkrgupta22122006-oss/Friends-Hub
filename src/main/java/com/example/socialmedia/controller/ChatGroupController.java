@@ -73,8 +73,8 @@ public class ChatGroupController {
     }
 
     @GetMapping("/{groupId}/members")
-    public ResponseEntity<List<UserProfileResponse>> getGroupMembers(@PathVariable Long groupId) {
-        return ResponseEntity.ok(groupService.getGroupMembers(groupId));
+    public ResponseEntity<List<UserProfileResponse>> getGroupMembers(@PathVariable Long groupId, Authentication authentication) {
+        return ResponseEntity.ok(groupService.getGroupMembers(groupId, authentication.getName()));
     }
 
     @PostMapping("/{groupId}/members/add")

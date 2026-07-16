@@ -95,10 +95,25 @@ public class AuthService {
 
     public AuthResponse login(LoginRequest request) {
         String email = request.getEmail() != null ? request.getEmail().trim().toLowerCase() : "";
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        email,
-                        request.getPassword()));
+
+        String attemptsKey = "login:attempts:" + email;
+        Long attempts = redisTemplate.opsForValue().increment(attemptsKey);
+        if (attempts != null && attempts == 1) {
+            redisTemplate.expire(attemptsKey, Duration.ofMinutes(1));
+        }
+        if (attempts != null && attempts > 10) {
+            throw new RuntimeException("Too many login attempts. Please try again in 1 minute.");
+        }
+
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            email,
+                            request.getPassword()));
+            redisTemplate.delete(attemptsKey);
+        } catch (Exception e) {
+            throw e;
+        }
 
         var user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));

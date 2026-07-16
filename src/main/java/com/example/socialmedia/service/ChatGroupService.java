@@ -150,9 +150,16 @@ public class ChatGroupService {
     }
 
     @Transactional(readOnly = true)
-    public List<UserProfileResponse> getGroupMembers(Long groupId) {
+    public List<UserProfileResponse> getGroupMembers(Long groupId, String requesterEmail) {
         ChatGroup group = groupRepo.findById(groupId)
                 .orElseThrow(() -> new RuntimeException("Group not found"));
+
+        User requester = userRepo.findByEmail(requesterEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!group.getMembers().contains(requester)) {
+            throw new RuntimeException("Not a member of this group");
+        }
 
         return group.getMembers().stream()
                 .map(this::toUserProfileResponse)
