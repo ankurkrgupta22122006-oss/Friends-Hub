@@ -8,6 +8,7 @@ public class ChatGroupMessageDTO {
     private String senderName;
     private String senderProfilePic;
     private String content;
+    private String iv;
     private String imageUrl;
     private LocalDateTime createdAt;
     private Boolean isDeleted;
@@ -17,12 +18,13 @@ public class ChatGroupMessageDTO {
     }
 
     public ChatGroupMessageDTO(Long id, Long senderId, String senderName, String senderProfilePic,
-            String content, String imageUrl, LocalDateTime createdAt, Boolean isDeleted) {
+            String content, String iv, String imageUrl, LocalDateTime createdAt, Boolean isDeleted) {
         this.id = id;
         this.senderId = senderId;
         this.senderName = senderName;
         this.senderProfilePic = senderProfilePic;
         this.content = content;
+        this.iv = iv;
         this.imageUrl = imageUrl;
         this.createdAt = createdAt;
         this.isDeleted = isDeleted;
@@ -67,6 +69,14 @@ public class ChatGroupMessageDTO {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public String getIv() {
+        return iv;
+    }
+
+    public void setIv(String iv) {
+        this.iv = iv;
     }
 
     public String getImageUrl() {

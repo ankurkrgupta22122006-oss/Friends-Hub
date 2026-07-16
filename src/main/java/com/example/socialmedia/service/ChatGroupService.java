@@ -32,12 +32,13 @@ public class ChatGroupService {
     }
 
     @Transactional
-    public ChatGroupDTO createGroup(String name, String groupImageUrl, Set<Long> memberIds, String creatorEmail) {
+    public ChatGroupDTO createGroup(String name, String groupImageUrl, Set<Long> memberIds, String groupKeys, String creatorEmail) {
         User creator = userRepo.findByEmail(creatorEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         ChatGroup group = new ChatGroup(name, creator);
         group.setGroupImageUrl(groupImageUrl);
+        group.setGroupKeys(groupKeys);
 
         // Add creator and selected members
         group.getMembers().add(creator);
@@ -63,7 +64,7 @@ public class ChatGroupService {
     }
 
     @Transactional
-    public ChatGroupDTO addMember(Long groupId, Long userId, String requesterEmail) {
+    public ChatGroupDTO addMember(Long groupId, Long userId, String groupKeys, String requesterEmail) {
         ChatGroup group = groupRepo.findById(groupId)
                 .orElseThrow(() -> new RuntimeException("Group not found"));
 
@@ -80,6 +81,9 @@ public class ChatGroupService {
         }
 
         group.getMembers().add(userToAdd);
+        if (groupKeys != null && !groupKeys.isEmpty()) {
+            group.setGroupKeys(groupKeys);
+        }
         return toGroupDTO(groupRepo.save(group));
     }
 
@@ -106,7 +110,7 @@ public class ChatGroupService {
     }
 
     @Transactional
-    public ChatGroupMessageDTO sendGroupMessage(Long groupId, String content, String imageUrl, String senderEmail) {
+    public ChatGroupMessageDTO sendGroupMessage(Long groupId, String content, String imageUrl, String iv, String senderEmail) {
         ChatGroup group = groupRepo.findById(groupId)
                 .orElseThrow(() -> new RuntimeException("Group not found"));
 
@@ -122,6 +126,7 @@ public class ChatGroupService {
 
         ChatGroupMessage message = new ChatGroupMessage(group, sender, content);
         message.setImageUrl(imageUrl);
+        message.setIv(iv);
         ChatGroupMessage saved = messageRepo.save(message);
 
         return toMessageDTO(saved);
@@ -159,8 +164,6 @@ public class ChatGroupService {
         String lastMsg = "";
         java.time.LocalDateTime lastTime = null;
 
-        // This is inefficient for large lists, but fine for MVP.
-        // Ideally should optimize with specific query or stored field.
         List<ChatGroupMessage> msgs = messageRepo.findByGroupIdOrderByCreatedAtAsc(group.getId());
         if (!msgs.isEmpty()) {
             ChatGroupMessage latest = msgs.get(msgs.size() - 1);
@@ -176,7 +179,8 @@ public class ChatGroupService {
                 group.getMembers().size(),
                 lastMsg,
                 lastTime,
-                group.getCreatedBy().getId());
+                group.getCreatedBy().getId(),
+                group.getGroupKeys());
     }
 
     private ChatGroupMessageDTO toMessageDTO(ChatGroupMessage msg) {
@@ -190,6 +194,7 @@ public class ChatGroupService {
                 name,
                 pic,
                 msg.getContent(),
+                msg.getIv(),
                 msg.getImageUrl(),
                 msg.getCreatedAt(),
                 msg.getIsDeleted());

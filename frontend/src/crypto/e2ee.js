@@ -173,3 +173,60 @@ export async function decryptMessage(ciphertextB64, ivB64, senderPublicKeyB64) {
         return "[Unable to decrypt this message]";
     }
 }
+
+// ─── Group Chat E2EE Utilities ───────────────────────────────
+
+export async function generateGroupKey() {
+    const rawKey = crypto.getRandomValues(new Uint8Array(32)); // 256-bit AES key
+    return arrayBufferToBase64(rawKey.buffer);
+}
+
+async function importGroupCryptoKey(groupKeyB64) {
+    return crypto.subtle.importKey(
+        'raw',
+        base64ToArrayBuffer(groupKeyB64),
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+    );
+}
+
+export async function encryptGroupMessage(plaintext, groupKeyB64) {
+    if (!groupKeyB64 || !plaintext) {
+        return { ciphertext: plaintext, iv: null };
+    }
+    try {
+        const cryptoKey = await importGroupCryptoKey(groupKeyB64);
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const encryptedBuffer = await crypto.subtle.encrypt(
+            { name: 'AES-GCM', iv },
+            cryptoKey,
+            new TextEncoder().encode(plaintext)
+        );
+        return {
+            ciphertext: arrayBufferToBase64(encryptedBuffer),
+            iv: arrayBufferToBase64(iv.buffer)
+        };
+    } catch (err) {
+        console.error("Group encryption error:", err);
+        throw err;
+    }
+}
+
+export async function decryptGroupMessage(ciphertextB64, ivB64, groupKeyB64) {
+    if (!ciphertextB64) return "";
+    if (!ivB64 || !groupKeyB64) return ciphertextB64; // Fallback for unencrypted legacy messages
+    try {
+        const cryptoKey = await importGroupCryptoKey(groupKeyB64);
+        const decryptedBuffer = await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv: base64ToArrayBuffer(ivB64) },
+            cryptoKey,
+            base64ToArrayBuffer(ciphertextB64)
+        );
+        return new TextDecoder().decode(decryptedBuffer);
+    } catch (err) {
+        console.error("Group decryption error:", err);
+        return "[Unable to decrypt this message]";
+    }
+}
+

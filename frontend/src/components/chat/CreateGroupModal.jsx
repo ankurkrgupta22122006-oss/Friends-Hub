@@ -5,9 +5,12 @@ import { searchChatUsers } from '../../api/chat';
 import { getSuggestions } from '../../api/users';
 import { createGroup } from '../../api/groupChat';
 import { uploadImage } from '../../api/posts';
-import { useToast } from '../Toast'; // Fixed import path
+import { useToast } from '../Toast';
+import { useAuth } from '../../context/AuthContext';
+import { generateGroupKey, getPublicKeyForUser, encryptMessage } from '../../crypto/e2ee';
 
 export default function CreateGroupModal({ onClose, onCreated }) {
+    const { user: currentUser } = useAuth();
     const [name, setName] = useState('');
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState('');
@@ -78,9 +81,29 @@ export default function CreateGroupModal({ onClose, onCreated }) {
                 imageUrl = uploadRes.data.imageUrl;
             }
 
-            const memberIds = selectedUsers.map(u => u.id || u.userId);
-            await createGroup(name, imageUrl, memberIds);
-            toast.success("Group created!");
+            const rawMemberIds = selectedUsers.map(u => u.id || u.userId);
+            const allMemberIds = Array.from(new Set([...rawMemberIds, currentUser.id]));
+
+            // Generate group key
+            const groupKeyB64 = await generateGroupKey();
+            const groupKeysMap = {};
+
+            // Encrypt group key for each member
+            for (const uid of allMemberIds) {
+                try {
+                    const memberPubKey = await getPublicKeyForUser(uid);
+                    if (memberPubKey) {
+                        const encryptedKeyObj = await encryptMessage(groupKeyB64, memberPubKey);
+                        groupKeysMap[uid] = encryptedKeyObj;
+                    }
+                } catch (e) {
+                    console.error(`Failed to encrypt group key for user ${uid}:`, e);
+                }
+            }
+
+            const groupKeysJSON = JSON.stringify(groupKeysMap);
+            await createGroup(name, imageUrl, rawMemberIds, groupKeysJSON);
+            toast.success("Group created with E2EE!");
             onCreated();
         } catch (err) {
             console.error(err);

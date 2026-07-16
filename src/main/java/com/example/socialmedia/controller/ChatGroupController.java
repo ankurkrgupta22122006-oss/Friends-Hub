@@ -34,11 +34,10 @@ public class ChatGroupController {
     @MessageMapping("/chat.group.send/{groupId}")
     public void sendGroupMessage(@DestinationVariable Long groupId, @Payload GroupMessageRequest request,
             Authentication authentication) {
-        // Handle auth logic if needed, usually authentication principal covers it
         String senderEmail = authentication != null ? authentication.getName() : request.getSenderEmail();
 
         ChatGroupMessageDTO message = groupService.sendGroupMessage(
-                groupId, request.getContent(), request.getImageUrl(), senderEmail);
+                groupId, request.getContent(), request.getImageUrl(), request.getIv(), senderEmail);
 
         // Broadcast to specific group topic
         messagingTemplate.convertAndSend("/topic/group-" + groupId, message);
@@ -50,7 +49,7 @@ public class ChatGroupController {
     public ResponseEntity<ChatGroupDTO> createGroup(@RequestBody CreateGroupRequest request,
             Authentication authentication) {
         return ResponseEntity.ok(groupService.createGroup(
-                request.getName(), request.getGroupImageUrl(), request.getMemberIds(), authentication.getName()));
+                request.getName(), request.getGroupImageUrl(), request.getMemberIds(), request.getGroupKeys(), authentication.getName()));
     }
 
     @GetMapping
@@ -68,7 +67,7 @@ public class ChatGroupController {
     public ResponseEntity<ChatGroupMessageDTO> sendGroupMessageRest(
             @PathVariable Long groupId, @RequestBody GroupMessageRequest request, Authentication authentication) {
         ChatGroupMessageDTO message = groupService.sendGroupMessage(
-                groupId, request.getContent(), request.getImageUrl(), authentication.getName());
+                groupId, request.getContent(), request.getImageUrl(), request.getIv(), authentication.getName());
         messagingTemplate.convertAndSend("/topic/group-" + groupId, message);
         return ResponseEntity.ok(message);
     }
@@ -81,7 +80,7 @@ public class ChatGroupController {
     @PostMapping("/{groupId}/members/add")
     public ResponseEntity<ChatGroupDTO> addMember(
             @PathVariable Long groupId, @RequestBody MemberRequest request, Authentication authentication) {
-        return ResponseEntity.ok(groupService.addMember(groupId, request.getUserId(), authentication.getName()));
+        return ResponseEntity.ok(groupService.addMember(groupId, request.getUserId(), request.getGroupKeys(), authentication.getName()));
     }
 
     @PostMapping("/{groupId}/members/remove")
@@ -95,8 +94,8 @@ public class ChatGroupController {
         private String name;
         private String groupImageUrl;
         private Set<Long> memberIds;
+        private String groupKeys;
 
-        // getters/setters
         public String getName() {
             return name;
         }
@@ -120,11 +119,20 @@ public class ChatGroupController {
         public void setMemberIds(Set<Long> memberIds) {
             this.memberIds = memberIds;
         }
+
+        public String getGroupKeys() {
+            return groupKeys;
+        }
+
+        public void setGroupKeys(String groupKeys) {
+            this.groupKeys = groupKeys;
+        }
     }
 
     public static class GroupMessageRequest {
         private String content;
         private String imageUrl;
+        private String iv;
         private String senderEmail; // fallback if auth null
 
         public String getContent() {
@@ -143,6 +151,14 @@ public class ChatGroupController {
             this.imageUrl = imageUrl;
         }
 
+        public String getIv() {
+            return iv;
+        }
+
+        public void setIv(String iv) {
+            this.iv = iv;
+        }
+
         public String getSenderEmail() {
             return senderEmail;
         }
@@ -154,6 +170,7 @@ public class ChatGroupController {
 
     public static class MemberRequest {
         private Long userId;
+        private String groupKeys;
 
         public Long getUserId() {
             return userId;
@@ -161,6 +178,14 @@ public class ChatGroupController {
 
         public void setUserId(Long userId) {
             this.userId = userId;
+        }
+
+        public String getGroupKeys() {
+            return groupKeys;
+        }
+
+        public void setGroupKeys(String groupKeys) {
+            this.groupKeys = groupKeys;
         }
     }
 }

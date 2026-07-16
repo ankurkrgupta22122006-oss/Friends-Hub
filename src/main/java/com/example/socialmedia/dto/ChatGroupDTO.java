@@ -10,12 +10,13 @@ public class ChatGroupDTO {
     private String lastMessage;
     private LocalDateTime lastMessageTime;
     private Long createdById;
+    private String groupKeys;
 
     public ChatGroupDTO() {
     }
 
     public ChatGroupDTO(Long groupId, String name, String groupImageUrl, int memberCount,
-            String lastMessage, LocalDateTime lastMessageTime, Long createdById) {
+            String lastMessage, LocalDateTime lastMessageTime, Long createdById, String groupKeys) {
         this.groupId = groupId;
         this.name = name;
         this.groupImageUrl = groupImageUrl;
@@ -23,6 +24,7 @@ public class ChatGroupDTO {
         this.lastMessage = lastMessage;
         this.lastMessageTime = lastMessageTime;
         this.createdById = createdById;
+        this.groupKeys = groupKeys;
     }
 
     public Long getGroupId() {
@@ -79,5 +81,13 @@ public class ChatGroupDTO {
 
     public void setCreatedById(Long createdById) {
         this.createdById = createdById;
+    }
+
+    public String getGroupKeys() {
+        return groupKeys;
+    }
+
+    public void setGroupKeys(String groupKeys) {
+        this.groupKeys = groupKeys;
     }
 }

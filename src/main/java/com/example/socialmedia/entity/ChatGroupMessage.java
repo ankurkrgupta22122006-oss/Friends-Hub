@@ -26,6 +26,8 @@ public class ChatGroupMessage {
 
     private String imageUrl;
 
+    private String iv;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 
@@ -79,6 +81,14 @@ public class ChatGroupMessage {
 
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
+    }
+
+    public String getIv() {
+        return iv;
+    }
+
+    public void setIv(String iv) {
+        this.iv = iv;
     }
 
     public LocalDateTime getCreatedAt() {

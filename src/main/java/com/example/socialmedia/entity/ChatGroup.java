@@ -27,6 +27,9 @@ public class ChatGroup {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
+    @Column(columnDefinition = "TEXT")
+    private String groupKeys;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(name = "chat_group_members", joinColumns = @JoinColumn(name = "group_id"), inverseJoinColumns = @JoinColumn(name = "user_id"))
     private Set<User> members = new HashSet<>();
@@ -79,6 +82,14 @@ public class ChatGroup {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getGroupKeys() {
+        return groupKeys;
+    }
+
+    public void setGroupKeys(String groupKeys) {
+        this.groupKeys = groupKeys;
     }
 
     public Set<User> getMembers() {

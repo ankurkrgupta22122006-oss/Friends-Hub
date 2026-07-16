@@ -8,6 +8,7 @@ import { uploadImage } from '../../api/posts';
 import { useToast } from '../Toast';
 import GroupMembersModal from './GroupMembersModal';
 import { stompClient } from '../../socket/chatSocket';
+import { getPublicKeyForUser, decryptMessage, encryptGroupMessage, decryptGroupMessage } from '../../crypto/e2ee';
 
 export default function GroupChatWindow({ group, currentUser, onBack, refreshGroups, isSocketConnected }) {
     const [messages, setMessages] = useState([]);
@@ -19,34 +20,103 @@ export default function GroupChatWindow({ group, currentUser, onBack, refreshGro
     const [imagePreview, setImagePreview] = useState('');
     const [previewImage, setPreviewImage] = useState(null); // Full screen preview
     const [showEmojis, setShowEmojis] = useState(false);
+    const [groupKeyB64, setGroupKeyB64] = useState(null);
+    const groupKeyRef = useRef(null);
     const EMOJIS = ['😊', '😂', '❤️', '👍', '🔥', '😢', '😍', '👏', '🎉', '🤔', '🙌', '✨'];
     const messagesEndRef = useRef(null);
     const fileRef = useRef(null);
     const subscriptionRef = useRef(null);
     const toast = useToast();
 
+    // Decrypt and cache group key on load or group change
+    useEffect(() => {
+        groupKeyRef.current = null;
+        setGroupKeyB64(null);
+        if (!group?.groupKeys || !currentUser) return;
+
+        (async () => {
+            try {
+                const keysMap = typeof group.groupKeys === 'string' ? JSON.parse(group.groupKeys) : group.groupKeys;
+                const myUserId = currentUser.id || currentUser.userId;
+                const myEncryptedKey = keysMap[myUserId];
+                if (myEncryptedKey && myEncryptedKey.ciphertext && myEncryptedKey.iv) {
+                    const creatorPubKey = await getPublicKeyForUser(group.createdById);
+                    if (creatorPubKey) {
+                        const decryptedKey = await decryptMessage(myEncryptedKey.ciphertext, myEncryptedKey.iv, creatorPubKey);
+                        if (decryptedKey && decryptedKey !== "[Unable to decrypt this message]") {
+                            setGroupKeyB64(decryptedKey);
+                            groupKeyRef.current = decryptedKey;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to decrypt group key:", e);
+            }
+        })();
+    }, [group?.groupId, group?.groupKeys, group?.createdById, currentUser]);
+
     // Load messages
     useEffect(() => {
         if (!group) return;
         setLoading(true);
         getGroupMessages(group.groupId)
-            .then(res => setMessages(Array.isArray(res.data) ? res.data : []))
+            .then(async (res) => {
+                const raw = Array.isArray(res.data) ? res.data : [];
+
+                // Attempt key recovery if state not updated yet
+                let activeGroupKey = groupKeyB64 || groupKeyRef.current;
+                if (!activeGroupKey && group.groupKeys && currentUser) {
+                    try {
+                        const keysMap = typeof group.groupKeys === 'string' ? JSON.parse(group.groupKeys) : group.groupKeys;
+                        const myUserId = currentUser.id || currentUser.userId;
+                        const myEncryptedKey = keysMap[myUserId];
+                        if (myEncryptedKey?.ciphertext && myEncryptedKey?.iv) {
+                            const creatorPubKey = await getPublicKeyForUser(group.createdById);
+                            if (creatorPubKey) {
+                                activeGroupKey = await decryptMessage(myEncryptedKey.ciphertext, myEncryptedKey.iv, creatorPubKey);
+                                if (activeGroupKey && activeGroupKey !== "[Unable to decrypt this message]") {
+                                    setGroupKeyB64(activeGroupKey);
+                                    groupKeyRef.current = activeGroupKey;
+                                }
+                            }
+                        }
+                    } catch (e) { }
+                }
+
+                const decryptedArray = await Promise.all(
+                    raw.map(async (msg) => {
+                        if (msg.content && msg.iv && activeGroupKey) {
+                            const plaintext = await decryptGroupMessage(msg.content, msg.iv, activeGroupKey);
+                            return { ...msg, content: plaintext };
+                        }
+                        return msg;
+                    })
+                );
+                setMessages(decryptedArray);
+            })
             .catch(() => toast.error("Failed to load messages"))
             .finally(() => setLoading(false));
-    }, [group?.groupId]);
+    }, [group?.groupId, groupKeyB64, currentUser]);
 
     // WebSocket Subscription
     useEffect(() => {
         if (!group || !stompClient || !isSocketConnected) return;
 
-        console.log("Subscribing to group", group.groupId);
-        subscriptionRef.current = stompClient.subscribe(`/topic/group-${group.groupId}`, (message) => {
+        subscriptionRef.current = stompClient.subscribe(`/topic/group-${group.groupId}`, async (message) => {
             const msg = JSON.parse(message.body);
+            let processedMsg = msg;
+
+            const activeKey = groupKeyRef.current || groupKeyB64;
+            if (msg.content && msg.iv && activeKey) {
+                const plaintext = await decryptGroupMessage(msg.content, msg.iv, activeKey);
+                processedMsg = { ...msg, content: plaintext };
+            }
+
             setMessages(prev => {
-                if (prev.some(m => m.id === msg.id)) return prev;
-                return [...prev, msg];
+                if (prev.some(m => m.id === processedMsg.id)) return prev;
+                return [...prev, processedMsg];
             });
-            refreshGroups(); // Update last message in list
+            refreshGroups();
         });
 
         return () => {
@@ -54,7 +124,7 @@ export default function GroupChatWindow({ group, currentUser, onBack, refreshGro
                 subscriptionRef.current.unsubscribe();
             }
         };
-    }, [group?.groupId, refreshGroups]);
+    }, [group?.groupId, groupKeyB64, refreshGroups, isSocketConnected]);
 
     // Auto-scroll
     useEffect(() => {
@@ -66,6 +136,7 @@ export default function GroupChatWindow({ group, currentUser, onBack, refreshGro
         if ((!text.trim() && !imageFile) || sending) return;
 
         setSending(true);
+        const messageText = text.trim();
         try {
             let imageUrl = null;
             if (imageFile) {
@@ -73,21 +144,33 @@ export default function GroupChatWindow({ group, currentUser, onBack, refreshGro
                 imageUrl = uploadRes.data.imageUrl;
             }
 
+            const activeKey = groupKeyRef.current || groupKeyB64;
+            let ciphertext = messageText;
+            let iv = null;
+
+            if (messageText && activeKey) {
+                const encrypted = await encryptGroupMessage(messageText, activeKey);
+                ciphertext = encrypted.ciphertext;
+                iv = encrypted.iv;
+            }
+
             const payload = {
-                content: text,
+                content: ciphertext,
+                iv: iv,
                 imageUrl: imageUrl,
                 senderEmail: currentUser.email
             };
 
             if (imageUrl || !isSocketConnected || !stompClient || !stompClient.connected) {
-                const sentMsg = await sendGroupMessageRest(group.groupId, text, imageUrl);
-                // If socket is disconnected, we won't get the broadcast back, so update manually
-                if (!isSocketConnected) {
-                    setMessages(prev => {
-                        if (prev.some(m => m.id === sentMsg.data.id)) return prev;
-                        return [...prev, sentMsg.data];
-                    });
-                }
+                const sentMsg = await sendGroupMessageRest(group.groupId, ciphertext, imageUrl, iv);
+                const optimisticMsg = {
+                    ...sentMsg.data,
+                    content: messageText
+                };
+                setMessages(prev => {
+                    if (prev.some(m => m.id === optimisticMsg.id)) return prev;
+                    return [...prev, optimisticMsg];
+                });
             } else {
                 stompClient.publish({
                     destination: `/app/chat.group.send/${group.groupId}`,
