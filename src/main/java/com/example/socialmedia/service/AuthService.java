@@ -60,7 +60,8 @@ public class AuthService {
 
     @Transactional
     public String register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
+        String email = request.getEmail() != null ? request.getEmail().trim().toLowerCase() : "";
+        if (userRepository.existsByEmail(email)) {
             throw new RuntimeException("Email already in use");
         }
 
@@ -68,7 +69,7 @@ public class AuthService {
         String hashedToken = hashToken(rawToken);
 
         User user = User.builder()
-                .email(request.getEmail())
+                .email(email)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .verificationStatus(VerificationStatus.PENDING)
                 .verificationToken(hashedToken)
@@ -93,12 +94,13 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
+        String email = request.getEmail() != null ? request.getEmail().trim().toLowerCase() : "";
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
+                        email,
                         request.getPassword()));
 
-        var user = userRepository.findByEmail(request.getEmail())
+        var user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         if (user.getVerificationStatus() != VerificationStatus.VERIFIED) {

@@ -63,23 +63,24 @@ export async function getOrCreateIdentity() {
         const db = await openDB();
         let keyPair = await getKey(db, 'identity', 'keyPair');
 
-        if (keyPair) {
-            const rawPub = await crypto.subtle.exportKey('raw', keyPair.publicKey);
-            const publicKeyB64 = arrayBufferToBase64(rawPub);
-            return { keyPair, publicKeyB64 };
+        if (!keyPair) {
+            keyPair = await crypto.subtle.generateKey(
+                { name: 'ECDH', namedCurve: 'P-256' },
+                true,
+                ['deriveKey']
+            );
+            await putKey(db, 'identity', keyPair, 'keyPair');
         }
 
-        keyPair = await crypto.subtle.generateKey(
-            { name: 'ECDH', namedCurve: 'P-256' },
-            true,
-            ['deriveKey']
-        );
-
-        await putKey(db, 'identity', keyPair, 'keyPair');
         const rawPub = await crypto.subtle.exportKey('raw', keyPair.publicKey);
         const publicKeyB64 = arrayBufferToBase64(rawPub);
 
-        await api.put('/users/me/public-key', { publicKey: publicKeyB64 });
+        try {
+            await api.put('/users/me/public-key', { publicKey: publicKeyB64 });
+        } catch (syncErr) {
+            console.warn("Public key sync warning:", syncErr);
+        }
+
         return { keyPair, publicKeyB64 };
     })();
 

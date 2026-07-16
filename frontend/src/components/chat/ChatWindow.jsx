@@ -86,12 +86,14 @@ export default function ChatWindow({
             }
 
             const receiverPublicKey = await getPublicKeyForUser(selectedUser.id);
-            if (!receiverPublicKey) {
-                toast.error("This user hasn't set up encryption yet");
-                return;
-            }
+            let ciphertext = messageText;
+            let iv = null;
 
-            const { ciphertext, iv } = await encryptMessage(messageText, receiverPublicKey);
+            if (receiverPublicKey && messageText) {
+                const encrypted = await encryptMessage(messageText, receiverPublicKey);
+                ciphertext = encrypted.ciphertext;
+                iv = encrypted.iv;
+            }
 
             if (imageUrl || !isConnected()) {
                 const res = await sendMessageRest(selectedUser.id, ciphertext, imageUrl, iv);
