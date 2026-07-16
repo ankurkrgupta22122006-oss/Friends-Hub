@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { Home, Search, MessageCircle, Settings, Users, LogOut, PlusSquare, Moon, Sun, Activity } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -16,11 +16,29 @@ export default function Sidebar({ onCreatePost }) {
     const { user, logout } = useAuth();
     const { isDarkMode, toggleTheme } = useTheme();
     const navigate = useNavigate();
+    const location = useLocation();
     const [profile, setProfile] = useState(null);
+    const [hasUnreadMsg, setHasUnreadMsg] = useState(false);
 
     useEffect(() => {
         getProfile().then(res => setProfile(res.data)).catch(() => { });
     }, []);
+
+    useEffect(() => {
+        const handleUnread = () => {
+            if (!location.pathname.startsWith('/chat')) {
+                setHasUnreadMsg(true);
+            }
+        };
+        window.addEventListener('unreadChatMessage', handleUnread);
+        return () => window.removeEventListener('unreadChatMessage', handleUnread);
+    }, [location.pathname]);
+
+    useEffect(() => {
+        if (location.pathname.startsWith('/chat')) {
+            setHasUnreadMsg(false);
+        }
+    }, [location.pathname]);
 
     const handleLogout = () => {
         logout();
@@ -64,9 +82,20 @@ export default function Sidebar({ onCreatePost }) {
                                 {isActive && (
                                     <div className="absolute inset-0 bg-gradient-to-r from-[var(--gradient-1)] to-[var(--gradient-2)] opacity-100 z-0" />
                                 )}
-                                <div className="relative z-10 flex items-center gap-3.5">
-                                    <Icon size={24} strokeWidth={isActive ? 2.5 : 1.5} className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
-                                    <span className="hidden md:block lg:block">{label}</span>
+                                <div className="relative z-10 flex items-center gap-3.5 w-full">
+                                    <div className="relative">
+                                        <Icon size={24} strokeWidth={isActive ? 2.5 : 1.5} className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                                        {to === '/chat' && hasUnreadMsg && !isActive && (
+                                            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[var(--bg-card)] animate-ping" />
+                                        )}
+                                        {to === '/chat' && hasUnreadMsg && !isActive && (
+                                            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[var(--bg-card)] shadow-md shadow-red-500/50" />
+                                        )}
+                                    </div>
+                                    <span className="hidden md:block lg:block flex-1">{label}</span>
+                                    {to === '/chat' && hasUnreadMsg && !isActive && (
+                                        <span className="text-[10px] font-bold bg-red-500 text-white px-2 py-0.5 rounded-full shadow-sm">NEW</span>
+                                    )}
                                 </div>
                             </>
                         )}

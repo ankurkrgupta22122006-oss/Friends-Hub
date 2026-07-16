@@ -23,6 +23,9 @@ export function connectChat(userId, { onMessage, onTyping, onOnlineUsers, onConn
         // Private messages
         stompClient.subscribe(`/queue/messages-${userId}`, (msg) => {
             const body = JSON.parse(msg.body);
+            if (body.type === 'message' || !body.type) {
+                window.dispatchEvent(new CustomEvent('unreadChatMessage', { detail: body }));
+            }
             onMessage?.(body);
         });
 

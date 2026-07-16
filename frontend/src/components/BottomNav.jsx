@@ -1,7 +1,27 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { Home, Search, PlusSquare, MessageCircle, Activity } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 export default function BottomNav({ onCreatePost }) {
+    const location = useLocation();
+    const [hasUnreadMsg, setHasUnreadMsg] = useState(false);
+
+    useEffect(() => {
+        const handleUnread = () => {
+            if (!location.pathname.startsWith('/chat')) {
+                setHasUnreadMsg(true);
+            }
+        };
+        window.addEventListener('unreadChatMessage', handleUnread);
+        return () => window.removeEventListener('unreadChatMessage', handleUnread);
+    }, [location.pathname]);
+
+    useEffect(() => {
+        if (location.pathname.startsWith('/chat')) {
+            setHasUnreadMsg(false);
+        }
+    }, [location.pathname]);
+
     return (
         <nav className="bottom-nav lg:hidden glass-strong pb-[env(safe-area-inset-bottom)]">
             <div className="flex items-center justify-between max-w-sm mx-auto relative px-6">
@@ -10,9 +30,16 @@ export default function BottomNav({ onCreatePost }) {
                     {({ isActive }) => <Home size={24} strokeWidth={isActive ? 2.5 : 1.5} />}
                 </NavLink>
 
-                <NavLink to="/search" className={({ isActive }) =>
-                    `flex flex-col items-center py-1.5 px-3 transition-colors ${isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}>
-                    {({ isActive }) => <Search size={24} strokeWidth={isActive ? 2.5 : 1.5} />}
+                <NavLink to="/chat" className={({ isActive }) =>
+                    `flex flex-col items-center py-1.5 px-3 transition-colors relative ${isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}>
+                    {({ isActive }) => (
+                        <div className="relative">
+                            <MessageCircle size={24} strokeWidth={isActive ? 2.5 : 1.5} />
+                            {hasUnreadMsg && !isActive && (
+                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-black animate-pulse" />
+                            )}
+                        </div>
+                    )}
                 </NavLink>
 
                 <div className="relative -top-5">

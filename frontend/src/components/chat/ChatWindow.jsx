@@ -40,15 +40,16 @@ export default function ChatWindow({
         getMessages(selectedUser.id)
             .then(async (res) => {
                 const raw = Array.isArray(res.data) ? res.data : [];
+                const peerPublicKey = await getPublicKeyForUser(selectedUser.id);
                 const decryptedArray = await Promise.all(
                     raw.map(async (msg) => {
                         if (!msg.content || !msg.iv) {
                             return msg;
                         }
+                        if (!peerPublicKey) {
+                            return msg;
+                        }
                         try {
-                            const activeUserId = currentUser?.id || currentUserId;
-                            const peerId = msg.senderId === activeUserId ? msg.receiverId : msg.senderId;
-                            const peerPublicKey = await getPublicKeyForUser(peerId);
                             const plaintext = await decryptMessage(msg.content, msg.iv, peerPublicKey);
                             return { ...msg, content: plaintext };
                         } catch (err) {
