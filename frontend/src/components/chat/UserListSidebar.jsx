@@ -87,9 +87,9 @@ export default function UserListSidebar({ conversations, activeUserId, onSelectU
                         return (
                             <motion.button
                                 key={user.id}
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: idx * 0.03 }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.15 }}
                                 onClick={() => { onSelectUser(user); setSearch(''); setSearchResults([]); }}
                                 className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer text-left ${activeUserId === user.id
                                     ? 'bg-[var(--accent-light)] border border-[var(--accent)]/30'

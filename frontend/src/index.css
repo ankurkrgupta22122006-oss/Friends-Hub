@@ -108,19 +108,21 @@
 
 @layer components {
 
-  /* Glassmorphism */
+  /* Glassmorphism — Hardware Accelerated & Lightweight */
   .glass {
     background: var(--glass-bg);
-    backdrop-filter: blur(24px) saturate(120%);
-    -webkit-backdrop-filter: blur(24px) saturate(120%);
+    backdrop-filter: blur(12px) saturate(110%);
+    -webkit-backdrop-filter: blur(12px) saturate(110%);
     border: 1px solid var(--glass-border);
+    transform: translateZ(0);
   }
 
   .glass-strong {
     background: var(--bg-primary);
-    backdrop-filter: blur(32px) saturate(130%);
-    -webkit-backdrop-filter: blur(32px) saturate(130%);
+    backdrop-filter: blur(16px) saturate(115%);
+    -webkit-backdrop-filter: blur(16px) saturate(115%);
     border: 1px solid var(--border-color);
+    transform: translateZ(0);
   }
 
   .text-gradient {
@@ -301,15 +303,17 @@
     border: 3px solid var(--bg-primary);
   }
 
-  /* Floating orbs — subtle */
+  /* Floating orbs — Lightweight & Hardware Accelerated */
   .orb {
     position: fixed;
     border-radius: 50%;
     pointer-events: none;
     z-index: 0;
-    filter: blur(100px);
-    opacity: 0.5;
-    animation: float 25s ease-in-out infinite;
+    filter: blur(40px);
+    opacity: 0.4;
+    transform: translateZ(0);
+    will-change: transform;
+    animation: float 25s linear infinite;
   }
 
   .orb-1 {
