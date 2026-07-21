@@ -24,7 +24,6 @@ function timeAgo(dateStr) {
 }
 
 export default function PostCard({ post, currentEmail, currentUserId, onDelete, onLikeToggle }) {
-    const { isDarkMode } = useTheme();
     const toast = useToast();
     const [liked, setLiked] = useState(post.liked || post.isLiked);
     const [likeCount, setLikeCount] = useState(post.likeCount || post.likesCount || 0);
