@@ -59,8 +59,44 @@ public class ChatGroupService {
         User user = userRepo.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        List<ChatGroup> groups = groupRepo.findByMembers_Id(user.getId());
-        return groups.stream().map(this::toGroupDTO).collect(Collectors.toList());
+        List<ChatGroup> groups = groupRepo.findGroupsWithMembersByUserId(user.getId());
+        if (groups.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+
+        List<Long> groupIds = groups.stream().map(ChatGroup::getId).collect(Collectors.toList());
+        java.util.Map<Long, ChatGroupMessage> latestMap = messageRepo.findLatestMessagesByGroupIds(groupIds).stream()
+                .collect(Collectors.toMap(m -> m.getGroup().getId(), m -> m, (m1, m2) -> m1));
+
+        return groups.stream()
+                .map(g -> toGroupDTOWithLatest(g, latestMap.get(g.getId())))
+                .collect(Collectors.toList());
+    }
+
+    private ChatGroupDTO toGroupDTOWithLatest(ChatGroup group, ChatGroupMessage latest) {
+        String lastMsg = "";
+        java.time.LocalDateTime lastTime = null;
+
+        if (latest != null) {
+            lastMsg = latest.getIsDeleted() ? "Message deleted"
+                    : (latest.getContent() != null && !latest.getContent().isEmpty()) ? latest.getContent() : "Image";
+            lastTime = latest.getCreatedAt();
+        }
+
+        return new ChatGroupDTO(
+                group.getId(),
+                group.getName(),
+                group.getGroupImageUrl(),
+                group.getMembers().size(),
+                lastMsg,
+                lastTime,
+                group.getCreatedBy() != null ? group.getCreatedBy().getId() : null,
+                group.getGroupKeys());
+    }
+
+    private ChatGroupDTO toGroupDTO(ChatGroup group) {
+        var latestOpt = messageRepo.findTopByGroupIdOrderByCreatedAtDesc(group.getId());
+        return toGroupDTOWithLatest(group, latestOpt.orElse(null));
     }
 
     @Transactional

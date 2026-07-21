@@ -7,12 +7,14 @@ import CreateGroupModal from '../components/chat/CreateGroupModal';
 import { connectChat, disconnectChat } from '../socket/chatSocket';
 import GroupChatWindow from '../components/chat/GroupChatWindow';
 
+let groupsCache = [];
+
 export default function GroupChatPage() {
     const { user } = useAuth();
-    const [groups, setGroups] = useState([]);
+    const [groups, setGroups] = useState(groupsCache);
     const [selectedGroup, setSelectedGroup] = useState(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(groupsCache.length === 0);
     const [isSocketConnected, setIsSocketConnected] = useState(false);
 
     useEffect(() => {
@@ -24,9 +26,13 @@ export default function GroupChatPage() {
     }, [user?.id]);
 
     const fetchGroups = () => {
-        setLoading(true);
+        if (groupsCache.length === 0) setLoading(true);
         getUserGroups()
-            .then(res => setGroups(Array.isArray(res.data) ? res.data : []))
+            .then(res => {
+                const data = Array.isArray(res.data) ? res.data : [];
+                groupsCache = data;
+                setGroups(data);
+            })
             .catch(err => console.error("Failed to load groups", err))
             .finally(() => setLoading(false));
     };

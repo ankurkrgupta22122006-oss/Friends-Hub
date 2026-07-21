@@ -35,41 +35,77 @@ export default function ProfilePreview() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [followed, setFollowed] = useState(new Set());
+    const candidatePoolRef = useRef([]);
 
     useEffect(() => {
         getProfile().then(res => setProfile(res.data)).catch(() => { });
     }, []);
 
+    const pickFiveDifferent = useCallback((pool, currentDisplayed, followedSet) => {
+        const available = pool.filter(c => !followedSet.has(c.id));
+        if (available.length <= 5) return available;
+
+        const currentIds = new Set(currentDisplayed.map(c => c.id));
+        const nonCurrentlyDisplayed = available.filter(c => !currentIds.has(c.id));
+
+        const shuffled = [...nonCurrentlyDisplayed].sort(() => Math.random() - 0.5);
+        if (shuffled.length >= 5) {
+            return shuffled.slice(0, 5);
+        }
+        const extraNeeded = 5 - shuffled.length;
+        const fallback = available.filter(c => currentIds.has(c.id)).sort(() => Math.random() - 0.5);
+        return [...shuffled, ...fallback.slice(0, extraNeeded)];
+    }, []);
+
     const loadRecommendations = useCallback(async (isRefresh = false) => {
-        if (isRefresh) setRefreshing(true);
-        else setLoading(true);
+        if (isRefresh) {
+            setRefreshing(true);
+            if (candidatePoolRef.current.length > 5) {
+                const freshFive = pickFiveDifferent(candidatePoolRef.current, recommendations, followed);
+                setRecommendations(freshFive);
+            }
+        } else {
+            setLoading(true);
+        }
+
         try {
             const res = await getRecommendations();
             const data = Array.isArray(res.data) ? res.data : [];
-            // On refresh, shuffle so users see fresh order
-            if (isRefresh) {
-                data.sort(() => Math.random() - 0.5);
-            }
-            setRecommendations(data.slice(0, 5));
+            candidatePoolRef.current = data;
+            setRecommendations(prev => pickFiveDifferent(data, isRefresh ? prev : [], followed));
         } catch {
-            setRecommendations([]);
+            if (!isRefresh) setRecommendations([]);
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
-    }, []);
+    }, [followed, pickFiveDifferent, recommendations]);
 
-    useEffect(() => { loadRecommendations(); }, [loadRecommendations]);
+    useEffect(() => { loadRecommendations(); }, []);
 
     const handleFollow = async (userId) => {
+        setFollowed(prev => new Set([...prev, userId]));
+        setTimeout(() => {
+            setRecommendations(prev => {
+                const remaining = prev.filter(r => r.id !== userId);
+                const unused = candidatePoolRef.current.filter(c => c.id !== userId && !followed.has(c.id) && !remaining.some(r => r.id === c.id));
+                if (unused.length > 0 && remaining.length < 5) {
+                    const randomPick = unused[Math.floor(Math.random() * unused.length)];
+                    return [...remaining, randomPick];
+                }
+                return remaining;
+            });
+        }, 500);
+
         try {
             await followUser(userId);
-            setFollowed(prev => new Set([...prev, userId]));
-            // Remove card after short delay
-            setTimeout(() => {
-                setRecommendations(prev => prev.filter(r => r.id !== userId));
-            }, 600);
-        } catch { }
+        } catch {
+            setFollowed(prev => {
+                const next = new Set(prev);
+                next.delete(userId);
+                return next;
+            });
+        }
     };
 
     const initial = user?.email?.charAt(0)?.toUpperCase() || '?';
@@ -118,7 +154,7 @@ export default function ProfilePreview() {
                 {/* Cards */}
                 <div className="space-y-3">
                     {loading ? (
-                        Array.from({ length: 3 }).map((_, i) => (
+                        Array.from({ length: 5 }).map((_, i) => (
                             <div key={i} className="flex items-start gap-3 py-1">
                                 <div className="w-9 h-9 rounded-full skeleton flex-shrink-0" />
                                 <div className="flex-1 space-y-1.5 pt-0.5">
@@ -132,14 +168,14 @@ export default function ProfilePreview() {
                             Complete your profile to get better recommendations
                         </p>
                     ) : (
-                        <AnimatePresence>
+                        <AnimatePresence mode="popLayout">
                             {recommendations.map((rec, idx) => (
                                 <motion.div
                                     key={rec.id}
                                     initial={{ opacity: 0, x: 12 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: -12, height: 0 }}
-                                    transition={{ delay: idx * 0.05 }}
+                                    transition={{ delay: idx * 0.04 }}
                                     className="flex items-start gap-3 py-1 group"
                                 >
                                     <Link to={`/profile/${rec.id}`} className="flex-shrink-0">

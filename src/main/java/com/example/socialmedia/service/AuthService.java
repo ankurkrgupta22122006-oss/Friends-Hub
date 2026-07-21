@@ -189,6 +189,7 @@ public class AuthService {
         return "Password reset successfully. You can now login.";
     }
 
+    @Transactional
     public AuthResponse googleLogin(OAuthRequest request) {
         Optional<User> existingUser = userRepository.findByEmail(request.getEmail());
         User user;

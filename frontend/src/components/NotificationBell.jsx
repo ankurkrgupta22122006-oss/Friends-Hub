@@ -78,12 +78,25 @@ export default function NotificationBell({ newNotification }) {
         } catch { }
     };
 
+    const handleMarkOneAsRead = async (e, notificationId) => {
+        e.stopPropagation();
+        setNotifications(prev => prev.map(n =>
+            n.id === notificationId ? { ...n, isRead: true } : n
+        ));
+        setUnreadCount(c => Math.max(0, c - 1));
+        try {
+            await markNotificationRead(notificationId);
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
     const handleAccept = async (e, notification) => {
         e.stopPropagation();
-        if (!notification.actor?.id) return;
+        if (!notification.actorId && !notification.actor?.id) return;
+        const targetActorId = notification.actorId || notification.actor?.id;
         try {
-            await acceptFollowRequestFromUser(notification.actor.id);
-            // Mark as read and maybe remove or show success
+            await acceptFollowRequestFromUser(targetActorId);
             setNotifications(prev => prev.map(n =>
                 n.id === notification.id ? { ...n, isRead: true, content: 'Request accepted' } : n
             ));
@@ -95,10 +108,10 @@ export default function NotificationBell({ newNotification }) {
 
     const handleReject = async (e, notification) => {
         e.stopPropagation();
-        if (!notification.actor?.id) return;
+        if (!notification.actorId && !notification.actor?.id) return;
+        const targetActorId = notification.actorId || notification.actor?.id;
         try {
-            await rejectFollowRequestFromUser(notification.actor.id);
-            // Mark as read and update text
+            await rejectFollowRequestFromUser(targetActorId);
             setNotifications(prev => prev.map(n =>
                 n.id === notification.id ? { ...n, isRead: true, content: 'Request removed' } : n
             ));
@@ -109,7 +122,6 @@ export default function NotificationBell({ newNotification }) {
     };
 
     const handleNotificationClick = async (notification) => {
-        // Mark this one as read (optimistic update)
         if (!notification.isRead) {
             setNotifications(prev => prev.map(n =>
                 n.id === notification.id ? { ...n, isRead: true } : n
@@ -124,7 +136,6 @@ export default function NotificationBell({ newNotification }) {
 
         setOpen(false);
 
-        // Navigate based on notification type
         switch (notification.type) {
             case 'FOLLOW':
             case 'FOLLOW_REQUEST':
@@ -135,7 +146,6 @@ export default function NotificationBell({ newNotification }) {
                 break;
             case 'LIKE':
             case 'COMMENT':
-                // No single-post view exists yet in this app — no-op until that route is added
                 break;
             default:
                 break;
@@ -180,11 +190,12 @@ export default function NotificationBell({ newNotification }) {
                         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)]">
                             <h3 className="text-sm font-bold text-[var(--text-primary)]">Notifications</h3>
                             <div className="flex items-center gap-2">
-                                {unreadCount > 0 && (
+                                {notifications.length > 0 && (
                                     <button
                                         onClick={handleMarkRead}
-                                        className="text-[10px] font-medium text-[var(--accent)] hover:underline cursor-pointer"
+                                        className="text-[11px] font-semibold text-[var(--accent)] hover:underline cursor-pointer flex items-center gap-1"
                                     >
+                                        <Check size={12} />
                                         Mark all read
                                     </button>
                                 )}
@@ -246,7 +257,16 @@ export default function NotificationBell({ newNotification }) {
                                                 )}
                                             </div>
                                             {!n.isRead && (
-                                                <div className="w-2 h-2 rounded-full bg-[var(--accent)] flex-shrink-0 mt-1.5" />
+                                                <div className="flex items-center gap-1.5 flex-shrink-0 mt-1">
+                                                    <button
+                                                        onClick={(e) => handleMarkOneAsRead(e, n.id)}
+                                                        className="p-1 rounded-md hover:bg-[var(--bg-card)] text-[var(--accent)] transition-colors cursor-pointer"
+                                                        title="Mark as read"
+                                                    >
+                                                        <Check size={13} />
+                                                    </button>
+                                                    <div className="w-2 h-2 rounded-full bg-[var(--accent)]" />
+                                                </div>
                                             )}
                                         </motion.div>
                                     );

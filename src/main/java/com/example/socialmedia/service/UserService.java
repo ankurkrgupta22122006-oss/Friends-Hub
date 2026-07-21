@@ -1,5 +1,6 @@
 package com.example.socialmedia.service;
 
+import com.example.socialmedia.dto.FollowToggleResponse;
 import com.example.socialmedia.dto.FollowUserResponse;
 import com.example.socialmedia.dto.NetworkGraphResponse;
 import com.example.socialmedia.dto.PublicKeyResponse;
@@ -53,10 +54,9 @@ public class UserService {
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
     }
 
-    // ─── Profile ──────────────────────────────────────────────
+    // ─── Profile Fetching ─────────────────────────────────────
 
     @Transactional(readOnly = true)
-    @Cacheable(value = "userProfiles", key = "#email")
     public UserProfileResponse getProfile(String email) {
         User user = getUserByEmail(email);
         UserInfo info = userInfoRepository.findByUser(user).orElse(null);
@@ -64,7 +64,6 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = "userProfiles", key = "#targetId")
     public UserProfileResponse getOtherProfile(Long targetId, String requesterEmail) {
         User requester = getUserByEmail(requesterEmail);
         User target = userRepository.findById(targetId)
@@ -74,46 +73,31 @@ public class UserService {
     }
 
     @Transactional
-    @CacheEvict(value = "userProfiles", key = "#email", beforeInvocation = false)
     public UserProfileResponse updateProfile(String email, UserProfileRequest request) {
         User user = getUserByEmail(email);
-        UserInfo info = userInfoRepository.findByUser(user).orElse(null);
+        UserInfo info = userInfoRepository.findByUser(user).orElseGet(() -> {
+            UserInfo newInfo = new UserInfo();
+            newInfo.setUser(user);
+            return newInfo;
+        });
 
-        if (info == null) {
-            info = new UserInfo();
-            info.setUser(user);
-        }
-
-        info.setFirstName(request.getFirstName());
-        info.setLastName(request.getLastName());
-        info.setBio(request.getBio());
-        info.setProfilePicUrl(request.getProfilePicUrl());
-        if (request.getWebsite() != null) info.setWebsite(request.getWebsite());
-        if (request.getLocation() != null) info.setLocation(request.getLocation());
-        if (request.getGender() != null) info.setGender(request.getGender());
-        if (request.getDob() != null) info.setDob(request.getDob());
-        if (request.getPhone() != null) info.setPhone(request.getPhone());
-        if (request.getProfileVisibility() != null) {
-            try {
-                info.setProfileVisibility(ProfileVisibility.valueOf(request.getProfileVisibility()));
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
+        if (request.getFirstName() != null) info.setFirstName(request.getFirstName());
+        if (request.getLastName() != null) info.setLastName(request.getLastName());
+        if (request.getBio() != null) info.setBio(request.getBio());
 
         userInfoRepository.save(info);
         return buildProfileResponse(user, info, user);
     }
 
     @Transactional
-    @CacheEvict(value = "userProfiles", key = "#email", beforeInvocation = false)
     public UserProfileResponse updateProfilePic(String email, String profilePicUrl) {
         User user = getUserByEmail(email);
-        UserInfo info = userInfoRepository.findByUser(user).orElse(null);
-        if (info == null) {
-            info = new UserInfo();
-            info.setUser(user);
-        }
-        if (info.getProfilePicUrl() != null) {
+        UserInfo info = userInfoRepository.findByUser(user).orElseGet(() -> {
+            UserInfo newInfo = new UserInfo();
+            newInfo.setUser(user);
+            return newInfo;
+        });
+        if (info.getProfilePicUrl() != null && storageService != null) {
             storageService.deleteImage(info.getProfilePicUrl());
         }
         info.setProfilePicUrl(profilePicUrl);
@@ -122,12 +106,11 @@ public class UserService {
     }
 
     @Transactional
-    @CacheEvict(value = "userProfiles", key = "#email", beforeInvocation = false)
     public UserProfileResponse removeProfilePic(String email) {
         User user = getUserByEmail(email);
         UserInfo info = userInfoRepository.findByUser(user).orElse(null);
         if (info != null && info.getProfilePicUrl() != null) {
-            storageService.deleteImage(info.getProfilePicUrl());
+            if (storageService != null) storageService.deleteImage(info.getProfilePicUrl());
             info.setProfilePicUrl(null);
             userInfoRepository.save(info);
         }
@@ -135,24 +118,19 @@ public class UserService {
     }
 
     @Transactional
-    @CacheEvict(value = "userProfiles", key = "#email", beforeInvocation = false)
     public UserProfileResponse updateProfileSettings(String email, UserProfileRequest request) {
         return updateProfile(email, request);
     }
 
     private UserProfileResponse buildProfileResponse(User user, UserInfo info, User requester) {
         boolean isMe = user.getId().equals(requester.getId());
-        boolean isFollowing = followRepository.findByFollowerAndFollowing(requester, user).isPresent();
+        boolean isFollowing = followRepository.existsByFollowerIdAndFollowingId(requester.getId(), user.getId());
         boolean isFollowRequested = followRequestRepository.findByRequesterAndTarget(requester, user).isPresent();
         boolean canViewPosts = isMe || !user.isPrivateAccount() || isFollowing;
 
-        // Calculate mutual friends count: people the requester follows who also follow the target user
-        Set<Long> myFollowingIds = followRepository.findByFollowerId(requester.getId())
-                .stream().map(f -> f.getFollowing().getId()).collect(Collectors.toSet());
-        int mutualFriendCount = (int) followRepository.findByFollowingId(user.getId()).stream()
-                .map(Follow::getFollower)
-                .filter(u -> myFollowingIds.contains(u.getId()))
-                .count();
+        int mutualFriendCount = followRepository.countMutualFriends(requester.getId(), user.getId());
+        long followerCount = followRepository.countByFollowingId(user.getId());
+        long followingCount = followRepository.countByFollowerId(user.getId());
 
         return UserProfileResponse.builder()
                 .userId(user.getId())
@@ -161,8 +139,8 @@ public class UserService {
                 .lastName(info != null ? info.getLastName() : null)
                 .bio(info != null ? info.getBio() : null)
                 .profilePicUrl(info != null ? info.getProfilePicUrl() : null)
-                .followerCount(followRepository.findByFollowingId(user.getId()).size())
-                .followingCount(followRepository.findByFollowerId(user.getId()).size())
+                .followerCount(followerCount)
+                .followingCount(followingCount)
                 .isPrivateAccount(user.isPrivateAccount())
                 .isFollowing(isFollowing)
                 .isFollowRequested(isFollowRequested)
@@ -175,7 +153,7 @@ public class UserService {
     // ─── Follow / Unfollow ────────────────────────────────────
 
     @Transactional
-    public String toggleFollow(Long targetUserId, String email) {
+    public FollowToggleResponse toggleFollow(Long targetUserId, String email) {
         User follower = getUserByEmail(email);
         User following = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -192,14 +170,16 @@ public class UserService {
 
         if (existingFollow.isPresent()) {
             followRepository.delete(existingFollow.get());
-            return "Unfollowed successfully";
+            long count = followRepository.countByFollowingId(following.getId());
+            return new FollowToggleResponse(false, false, count, "Unfollowed successfully");
         }
 
         if (following.isPrivateAccount()) {
             Optional<FollowRequest> existing = followRequestRepository.findByRequesterAndTarget(follower, following);
             if (existing.isPresent()) {
                 if (existing.get().getStatus() == FollowRequestStatus.PENDING) {
-                    return "Follow request already sent";
+                    long count = followRepository.countByFollowingId(following.getId());
+                    return new FollowToggleResponse(false, true, count, "Follow request already sent");
                 }
                 followRequestRepository.delete(existing.get());
             }
@@ -208,7 +188,8 @@ public class UserService {
             notificationService.createNotification(
                     following, NotificationType.FOLLOW_REQUEST,
                     getDisplayName(follower) + " requested to follow you", follower);
-            return "Follow request sent";
+            long count = followRepository.countByFollowingId(following.getId());
+            return new FollowToggleResponse(false, true, count, "Follow request sent");
         }
 
         Follow follow = new Follow();
@@ -220,7 +201,8 @@ public class UserService {
                 following, NotificationType.FOLLOW,
                 getDisplayName(follower) + " started following you", follower);
 
-        return "Followed successfully";
+        long count = followRepository.countByFollowingId(following.getId());
+        return new FollowToggleResponse(true, false, count, "Followed successfully");
     }
 
     // ─── Follow Requests ──────────────────────────────────────
@@ -330,19 +312,31 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (blocker.getId().equals(blocked.getId())) {
-            throw new RuntimeException("You cannot block yourself");
+            throw new RuntimeException("Cannot block yourself");
         }
 
-        if (blockRepository.existsByBlockerAndBlocked(blocker, blocked)) {
+        if (blockRepository.findByBlockerAndBlocked(blocker, blocked).isPresent()) {
             return "User already blocked";
         }
 
-        blockRepository.save(new Block(blocker, blocked));
+        // Remove follows in both directions
+        followRepository.findByFollowerAndFollowing(blocker, blocked)
+                .ifPresent(followRepository::delete);
+        followRepository.findByFollowerAndFollowing(blocked, blocker)
+                .ifPresent(followRepository::delete);
 
-        followRepository.findByFollowerAndFollowing(blocker, blocked).ifPresent(followRepository::delete);
-        followRepository.findByFollowerAndFollowing(blocked, blocker).ifPresent(followRepository::delete);
+        // Remove follow requests in both directions
+        followRequestRepository.findByRequesterAndTarget(blocker, blocked)
+                .ifPresent(followRequestRepository::delete);
+        followRequestRepository.findByRequesterAndTarget(blocked, blocker)
+                .ifPresent(followRequestRepository::delete);
 
-        return "User blocked";
+        Block block = new Block();
+        block.setBlocker(blocker);
+        block.setBlocked(blocked);
+        blockRepository.save(block);
+
+        return "User blocked successfully";
     }
 
     @Transactional
@@ -351,10 +345,11 @@ public class UserService {
         User blocked = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        blockRepository.findByBlockerAndBlocked(blocker, blocked)
-                .ifPresent(blockRepository::delete);
+        Block block = blockRepository.findByBlockerAndBlocked(blocker, blocked)
+                .orElseThrow(() -> new RuntimeException("User is not blocked"));
 
-        return "User unblocked";
+        blockRepository.delete(block);
+        return "User unblocked successfully";
     }
 
     public boolean isBlocked(User a, User b) {
@@ -363,8 +358,8 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<FollowUserResponse> getBlockedUsers(String email) {
-        User user = getUserByEmail(email);
-        return blockRepository.findByBlockerId(user.getId()).stream()
+        User blocker = getUserByEmail(email);
+        return blockRepository.findByBlockerId(blocker.getId()).stream()
                 .map(b -> mapToFollowUserResponse(b.getBlocked()))
                 .collect(Collectors.toList());
     }
@@ -373,8 +368,8 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<FollowUserResponse> getFollowers(Long userId) {
-        return followRepository.findByFollowingId(userId).stream()
-                .map(follow -> mapToFollowUserResponse(follow.getFollower()))
+        return followRepository.findFollowersWithUserInfoByFollowingId(userId).stream()
+                .map(this::mapToFollowUserResponse)
                 .collect(Collectors.toList());
     }
 
@@ -510,32 +505,27 @@ public class UserService {
         User me = getUserByEmail(email);
         Set<String> myKeywords = extractKeywords(me.getUserInfo() != null ? me.getUserInfo().getBio() : null);
         String myLocation = me.getUserInfo() != null ? me.getUserInfo().getLocation() : null;
-        Set<Long> myFollowingIds = followRepository.findByFollowerId(me.getId())
-                .stream().map(f -> f.getFollowing().getId()).collect(Collectors.toSet());
         List<User> candidates = userRepository.findRecommendationCandidates(me.getId(), PageRequest.of(0, 100));
         return candidates.stream()
-                .map(u -> scoreUser(u, myKeywords, myLocation, myFollowingIds))
-                .filter(r -> r.getMatchScore() > 0)
+                .map(u -> scoreUser(u, me, myKeywords, myLocation))
                 .sorted((a, b) -> Integer.compare(b.getMatchScore(), a.getMatchScore()))
-                .limit(10)
+                .limit(25)
                 .collect(Collectors.toList());
     }
 
-    private RecommendationResponse scoreUser(User u, Set<String> myKeywords, String myLocation,
-                                             Set<Long> myFollowingIds) {
-        int score = 0;
+    private RecommendationResponse scoreUser(User u, User me, Set<String> myKeywords, String myLocation) {
+        int score = 20; // Base match score for discovery
         java.util.List<String> reasons = new java.util.ArrayList<>();
         UserInfo info = u.getUserInfo();
 
-        long mutuals = followRepository.findByFollowingId(u.getId()).stream()
-                .filter(f -> myFollowingIds.contains(f.getFollower().getId())).count();
+        int mutuals = followRepository.countMutualFriends(me.getId(), u.getId());
         if (mutuals > 0) {
-            score += (int) Math.min(mutuals * 15, 45);
+            score += Math.min(mutuals * 15, 45);
             reasons.add(mutuals + " mutual friend" + (mutuals > 1 ? "s" : ""));
         }
 
         String theirLoc = info != null ? info.getLocation() : null;
-        if (myLocation != null && theirLoc != null && myLocation.trim().equalsIgnoreCase(theirLoc.trim())) {
+        if (myLocation != null && theirLoc != null && !myLocation.isBlank() && myLocation.trim().equalsIgnoreCase(theirLoc.trim())) {
             score += 25;
             reasons.add("Same location");
         }
@@ -544,10 +534,13 @@ public class UserService {
         sharedKeywords.retainAll(myKeywords);
         if (!sharedKeywords.isEmpty()) {
             score += Math.min(sharedKeywords.size() * 10, 30);
-            reasons.add("Shared interests: " + String.join(", ", sharedKeywords));
+            reasons.add("Shared interests");
         }
 
         if (info != null && info.getProfilePicUrl() != null) score += 5;
+        if (reasons.isEmpty()) {
+            reasons.add("Suggested for you");
+        }
 
         String name = info != null
                 ? ((info.getFirstName() != null ? info.getFirstName() : "") + " "
@@ -558,7 +551,7 @@ public class UserService {
         return new RecommendationResponse(u.getId(), name, u.getEmail(),
                 info != null ? info.getProfilePicUrl() : null,
                 theirLoc, info != null ? info.getBio() : null,
-                score, reasons);
+                Math.min(score, 98), reasons);
     }
 
     private Set<String> extractKeywords(String text) {
@@ -573,7 +566,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public List<FollowUserResponse> getSuggestedUsers(String email) {
         User user = getUserByEmail(email);
-        return userRepository.findSuggestedUsers(user.getId(), PageRequest.of(0, 5))
+        return userRepository.findSuggestedUsers(user.getId(), PageRequest.of(0, 20))
                 .stream()
                 .map(this::mapToFollowUserResponse)
                 .collect(Collectors.toList());

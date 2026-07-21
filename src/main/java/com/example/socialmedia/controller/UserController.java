@@ -1,5 +1,6 @@
 package com.example.socialmedia.controller;
 
+import com.example.socialmedia.dto.FollowToggleResponse;
 import com.example.socialmedia.dto.FollowUserResponse;
 import com.example.socialmedia.dto.FriendRequestAnalyticsResponse;
 import com.example.socialmedia.dto.MessageResponse;
@@ -85,8 +86,8 @@ public class UserController {
     // ─── Follow ───────────────────────────────────────────────
 
     @PostMapping("/{userId}/follow")
-    public ResponseEntity<MessageResponse> toggleFollow(@PathVariable Long userId, Authentication authentication) {
-        return ResponseEntity.ok(new MessageResponse(userService.toggleFollow(userId, authentication.getName())));
+    public ResponseEntity<FollowToggleResponse> toggleFollow(@PathVariable Long userId, Authentication authentication) {
+        return ResponseEntity.ok(userService.toggleFollow(userId, authentication.getName()));
     }
 
     @GetMapping("/{userId}/followers")

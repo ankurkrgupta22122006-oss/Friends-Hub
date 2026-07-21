@@ -17,9 +17,11 @@ export function AuthProvider({ children }) {
                     id: decoded.userId || decoded.id,
                     role: decoded.role
                 });
-                getOrCreateIdentity().catch((err) => {
-                    console.error("Failed to initialize E2EE key:", err);
-                });
+                setTimeout(() => {
+                    getOrCreateIdentity().catch((err) => {
+                        console.error("Failed to initialize E2EE key:", err);
+                    });
+                }, 500);
             } else {
                 // Token invalid or expired — auto logout
                 logout();

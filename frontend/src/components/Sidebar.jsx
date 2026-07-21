@@ -12,7 +12,7 @@ const links = [
     { to: '/chat', icon: MessageCircle, label: 'Messages' },
 ];
 
-export default function Sidebar({ onCreatePost }) {
+export default function Sidebar({ onCreatePost, isCreateOpen }) {
     const { user, logout } = useAuth();
     const { isDarkMode, toggleTheme } = useTheme();
     const navigate = useNavigate();
@@ -128,9 +128,13 @@ export default function Sidebar({ onCreatePost }) {
                 {/* Create Post button */}
                 <button
                     onClick={onCreatePost}
-                    className="flex items-center gap-3.5 px-4 py-3 rounded-xl text-[15px] font-medium text-white bg-gradient-to-r from-[var(--gradient-1)] to-[var(--gradient-2)] hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer shadow-lg shadow-[var(--accent-glow)] mt-1"
+                    className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-[15px] transition-all duration-300 group relative overflow-hidden cursor-pointer ${
+                        isCreateOpen
+                            ? 'font-bold text-white shadow-lg shadow-[var(--accent-glow)] bg-gradient-to-r from-[var(--gradient-1)] to-[var(--gradient-2)]'
+                            : 'font-normal text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] hover:translate-x-1'
+                    }`}
                 >
-                    <PlusSquare size={24} strokeWidth={2} />
+                    <PlusSquare size={24} strokeWidth={isCreateOpen ? 2.5 : 1.5} className={`transition-transform duration-300 ${isCreateOpen ? 'scale-110' : 'group-hover:scale-110'}`} />
                     <span className="hidden md:block lg:block">Create</span>
                 </button>
 

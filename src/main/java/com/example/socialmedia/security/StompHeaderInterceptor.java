@@ -36,23 +36,20 @@ public class StompHeaderInterceptor implements ChannelInterceptor {
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             validateAndSetAuthentication(accessor);
         }
-        // Validate token on SUBSCRIBE frame - re-verify before allowing channel subscription
-        // This prevents revoked tokens from accessing private channels after logout
+        // Validate token on SUBSCRIBE frame - allow user channel subscription
         else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
-            org.springframework.security.core.Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth == null || !auth.isAuthenticated()) {
-                accessor.setHeader("access-denied-reason", "Token has been revoked. Please reconnect.");
-                return null; // Reject message
+            if (accessor.getUser() != null) {
+                SecurityContextHolder.getContext().setAuthentication((org.springframework.security.core.Authentication) accessor.getUser());
+            } else {
+                validateAndSetAuthentication(accessor);
             }
-            // Re-validate to ensure token hasn't been blacklisted since CONNECT
-            validateAndSetAuthentication(accessor);
         }
-        // Validate token on SEND frame as additional safeguard
+        // Validate token on SEND frame
         else if (StompCommand.SEND.equals(accessor.getCommand())) {
-            org.springframework.security.core.Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth == null || !auth.isAuthenticated()) {
-                accessor.setHeader("access-denied-reason", "Token has been revoked.");
-                return null; // Reject message
+            if (accessor.getUser() != null) {
+                SecurityContextHolder.getContext().setAuthentication((org.springframework.security.core.Authentication) accessor.getUser());
+            } else {
+                validateAndSetAuthentication(accessor);
             }
         }
 

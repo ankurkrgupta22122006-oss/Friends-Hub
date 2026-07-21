@@ -46,7 +46,12 @@ export default function ProfilePage() {
         const fetchProfileData = async () => {
             setLoading(true);
             try {
-                const profileRes = userId ? await getUserProfileById(userId) : await getProfile();
+                const profilePromise = userId ? getUserProfileById(userId) : getProfile();
+                const postsPromise = userId
+                    ? getPostsByUser(userId, 0, 50).catch(() => ({ data: { content: [] } }))
+                    : getProfile().then(p => getPostsByUser(p.data.userId, 0, 50)).catch(() => ({ data: { content: [] } }));
+
+                const [profileRes, postsRes] = await Promise.all([profilePromise, postsPromise]);
                 const profileData = profileRes.data;
                 setProfile(profileData);
 
@@ -59,9 +64,7 @@ export default function ProfilePage() {
                     });
                 }
 
-                // If we can view posts, fetch them
                 if (profileData.canViewPosts) {
-                    const postsRes = await getPostsByUser(profileData.userId, 0, 50);
                     setPosts(postsRes.data?.content || []);
                 } else {
                     setPosts([]);
@@ -95,21 +98,73 @@ export default function ProfilePage() {
 
     const handleFollowToggle = async () => {
         if (!profile || followingLoading) return;
-        setFollowingLoading(true);
+
+        // Snapshot for error rollback
+        const previousProfile = { ...profile };
+
+        const isCurrentlyFollowing = profile.isFollowing;
+        const isCurrentlyRequested = profile.isFollowRequested;
+        const isPrivate = profile.isPrivateAccount;
+
+        let nextFollowing = false;
+        let nextRequested = false;
+        let deltaCount = 0;
+
+        if (isCurrentlyFollowing) {
+            nextFollowing = false;
+            nextRequested = false;
+            deltaCount = -1;
+        } else if (isCurrentlyRequested) {
+            nextFollowing = false;
+            nextRequested = false;
+            deltaCount = 0;
+        } else if (isPrivate) {
+            nextFollowing = false;
+            nextRequested = true;
+            deltaCount = 0;
+        } else {
+            nextFollowing = true;
+            nextRequested = false;
+            deltaCount = 1;
+        }
+
+        const nextFollowerCount = Math.max(0, (profile.followerCount || 0) + deltaCount);
+        const nextCanViewPosts = !isPrivate || nextFollowing || isOwnProfile;
+
+        // Optimistic State Update (Instant UI feedback)
+        setProfile(prev => ({
+            ...prev,
+            isFollowing: nextFollowing,
+            isFollowRequested: nextRequested,
+            followerCount: nextFollowerCount,
+            canViewPosts: nextCanViewPosts
+        }));
+
         try {
-            await followUser(profile.userId);
-            // Refresh profile to see updated status
-            const res = await getUserProfileById(profile.userId);
-            setProfile(res.data);
-            if (res.data.canViewPosts) {
-                const postsRes = await getPostsByUser(profile.userId, 0, 50);
-                setPosts(postsRes.data?.content || []);
+            const res = await followUser(profile.userId);
+            const responseData = res.data;
+
+            if (responseData && typeof responseData === 'object') {
+                setProfile(prev => ({
+                    ...prev,
+                    isFollowing: typeof responseData.isFollowing === 'boolean' ? responseData.isFollowing : nextFollowing,
+                    isFollowRequested: typeof responseData.isFollowRequested === 'boolean' ? responseData.isFollowRequested : nextRequested,
+                    followerCount: typeof responseData.followerCount === 'number' ? responseData.followerCount : nextFollowerCount
+                }));
+                if (responseData.message) toast.success(responseData.message);
+            } else {
+                toast.success(nextFollowing ? 'Followed!' : nextRequested ? 'Follow request sent!' : 'Unfollowed!');
             }
-            toast.success(res.data.isFollowing ? 'Followed!' : res.data.isFollowRequested ? 'Follow request sent!' : 'Unfollowed!');
+
+            if (nextCanViewPosts && !previousProfile.canViewPosts) {
+                getPostsByUser(profile.userId, 0, 50).then(postsRes => {
+                    setPosts(postsRes.data?.content || []);
+                }).catch(() => {});
+            }
         } catch (err) {
+            // Rollback on network failure
+            setProfile(previousProfile);
             toast.error('Failed to update follow status');
-        } finally {
-            setFollowingLoading(false);
         }
     };
 

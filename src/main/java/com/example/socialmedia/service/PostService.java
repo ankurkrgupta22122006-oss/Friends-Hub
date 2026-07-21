@@ -32,7 +32,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @CacheConfig(cacheNames = "posts")
@@ -101,20 +102,20 @@ public class PostService {
                                 .orElseThrow(() -> new RuntimeException("User not found"));
 
                 // Get followings
-                var followings = followRepository.findByFollowerId(user.getId())
-                                .stream().map(f -> f.getFollowing().getId()).toList();
+                List<Long> followings = new java.util.ArrayList<>(followRepository.findByFollowerId(user.getId())
+                                .stream().map(f -> f.getFollowing().getId()).toList());
 
                 // Include self in feed
                 followings.add(user.getId());
 
-                return postRepository.findByUserIdIn(followings, pageable)
-                                .map(post -> mapToPostResponse(post, currentUserEmail));
+                Page<Post> postsPage = postRepository.findByUserIdIn(followings, pageable);
+                return mapToPostResponsePage(postsPage, currentUserEmail);
         }
 
         @Transactional(readOnly = true)
         public Page<PostResponse> getAllPosts(Pageable pageable, String currentUserEmail) {
-                return postRepository.findAllPublicPosts(pageable)
-                                .map(post -> mapToPostResponse(post, currentUserEmail));
+                Page<Post> postsPage = postRepository.findAllPublicPosts(pageable);
+                return mapToPostResponsePage(postsPage, currentUserEmail);
         }
 
         @Transactional(readOnly = true)
@@ -141,8 +142,8 @@ public class PostService {
                         }
                 }
 
-                return postRepository.findByUserId(userId, pageable)
-                                .map(post -> mapToPostResponse(post, viewerEmail));
+                Page<Post> postsPage = postRepository.findByUserId(userId, pageable);
+                return mapToPostResponsePage(postsPage, viewerEmail);
         }
 
         @Transactional
@@ -167,6 +168,15 @@ public class PostService {
                         like.setUser(user);
                         like.setPost(post);
                         likeRepository.save(like);
+
+                        // Save in-app notification & push real-time STOMP
+                        notificationService.createNotification(
+                                post.getUser(),
+                                NotificationType.LIKE,
+                                getDisplayName(user) + " liked your post",
+                                user,
+                                postId
+                        );
 
                         // Send async notification via Kafka (non-blocking)
                         sendNotificationEvent(
@@ -200,6 +210,15 @@ public class PostService {
                 comment.setPost(post);
 
                 commentRepository.save(comment);
+
+                // Save in-app notification & push real-time STOMP
+                notificationService.createNotification(
+                        post.getUser(),
+                        NotificationType.COMMENT,
+                        getDisplayName(user) + " commented on your post",
+                        user,
+                        postId
+                );
 
                 // Send async notification via Kafka (non-blocking)
                 sendNotificationEvent(
@@ -274,6 +293,62 @@ public class PostService {
                                                         : "");
                 }
                 return user.getEmail().split("@")[0];
+        }
+
+        private Page<PostResponse> mapToPostResponsePage(Page<Post> page, String currentUserEmail) {
+                List<Post> posts = page.getContent();
+                if (posts.isEmpty()) {
+                        return page.map(p -> null);
+                }
+
+                List<Long> postIds = posts.stream().map(Post::getId).collect(Collectors.toList());
+
+                // 1 Batch query for liked status
+                Set<Long> likedPostIds = (currentUserEmail != null && !currentUserEmail.isEmpty())
+                                ? likeRepository.findLikedPostIdsByUserEmailAndPostIdIn(currentUserEmail, postIds)
+                                : Collections.emptySet();
+
+                // 1 Batch query for like counts
+                Map<Long, Long> likeCounts = likeRepository.countLikesByPostIdIn(postIds).stream()
+                                .collect(Collectors.toMap(arr -> (Long) arr[0], arr -> (Long) arr[1]));
+
+                // 1 Batch query for comment counts
+                Map<Long, Long> commentCounts = commentRepository.countCommentsByPostIdIn(postIds).stream()
+                                .collect(Collectors.toMap(arr -> (Long) arr[0], arr -> (Long) arr[1]));
+
+                Map<Long, PostResponse> mappedMap = new HashMap<>();
+                for (Post post : posts) {
+                        String authorName;
+                        if (post.getUser() != null && post.getUser().getUserInfo() != null && post.getUser().getUserInfo().getFirstName() != null) {
+                                String fn = post.getUser().getUserInfo().getFirstName();
+                                String ln = post.getUser().getUserInfo().getLastName();
+                                authorName = (fn + " " + (ln != null ? ln : "")).trim();
+                        } else if (post.getUser() != null) {
+                                authorName = post.getUser().getEmail();
+                        } else {
+                                authorName = "Unknown";
+                        }
+
+                        boolean isLiked = likedPostIds.contains(post.getId());
+                        long likeCount = likeCounts.getOrDefault(post.getId(), 0L);
+                        long commentCount = commentCounts.getOrDefault(post.getId(), 0L);
+
+                        PostResponse resp = PostResponse.builder()
+                                        .id(post.getId())
+                                        .content(post.getContent())
+                                        .imageUrl(post.getImageUrl())
+                                        .authorName(authorName)
+                                        .authorId(post.getUser() != null ? post.getUser().getId() : null)
+                                        .likeCount((int) likeCount)
+                                        .commentCount((int) commentCount)
+                                        .createdAt(post.getCreatedAt())
+                                        .isLiked(isLiked)
+                                        .build();
+
+                        mappedMap.put(post.getId(), resp);
+                }
+
+                return page.map(p -> mappedMap.get(p.getId()));
         }
 
         private PostResponse mapToPostResponse(Post post, String currentUserEmail) {

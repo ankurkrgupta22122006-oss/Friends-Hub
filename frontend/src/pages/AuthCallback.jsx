@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../context/AuthContext";
@@ -7,19 +7,13 @@ import api from "../api/axios";
 export default function AuthCallback() {
   const navigate = useNavigate();
   const { loginUser } = useAuth();
+  const processedRef = useRef(false);
 
   useEffect(() => {
-    const handleCallback = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error || !session) {
-        console.error("No session found:", error);
-        navigate("/login");
-        return;
-      }
+    const handleAuthUser = async (user) => {
+      if (processedRef.current || !user) return;
+      processedRef.current = true;
 
-      const { user } = session;
-      
       try {
         const res = await api.post("/auth/oauth/google", {
           email: user.email,
@@ -28,21 +22,39 @@ export default function AuthCallback() {
         });
         
         const token = res.data.token;
-        localStorage.setItem("token", token);
-        loginUser(token); // Update auth context
-        navigate("/");
+        loginUser(token);
+        navigate("/", { replace: true });
       } catch (err) {
-        console.error("Backend login failed:", err);
-        navigate("/login");
+        console.error("Backend OAuth login failed:", err);
+        navigate("/login", { replace: true });
       }
     };
 
-    handleCallback();
+    // Fast path 1: check current session immediately
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        handleAuthUser(session.user);
+      }
+    });
+
+    // Fast path 2: subscribe to instant auth state change event
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        handleAuthUser(session.user);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [navigate, loginUser]);
 
   return (
-    <div className="flex items-center justify-center h-screen bg-[var(--bg-primary)] text-[var(--accent)]">
-      <p>Authenticating...</p>
+    <div className="flex items-center justify-center min-h-screen bg-[var(--bg-primary)]">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-3 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+        <p className="text-xs font-semibold text-[var(--accent)] animate-pulse">Authenticating...</p>
+      </div>
     </div>
   );
 }

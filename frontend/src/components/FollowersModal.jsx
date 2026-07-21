@@ -1,7 +1,8 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Users, UserPlus, UserMinus } from 'lucide-react';
+import { X, Users, UserPlus, UserMinus, Loader } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { followUser } from '../api/users';
 
 export default function FollowersModal({ open, onClose, title, users }) {
     return (
@@ -44,7 +45,7 @@ export default function FollowersModal({ open, onClose, title, users }) {
                                 </div>
                             )}
                             {users?.map((u, i) => (
-                                <UserRow key={i} user={u} delay={i * 0.04} onUserClick={onClose} />
+                                <UserRow key={u.userId || u.id || i} user={u} delay={i * 0.04} onUserClick={onClose} defaultFollowing={title === 'Following'} />
                             ))}
                         </div>
                     </motion.div>
@@ -54,8 +55,21 @@ export default function FollowersModal({ open, onClose, title, users }) {
     );
 }
 
-function UserRow({ user: u, delay, onUserClick }) {
-    const [following, setFollowing] = useState(false);
+function UserRow({ user: u, delay, onUserClick, defaultFollowing }) {
+    const targetId = u.userId || u.id;
+    const [following, setFollowing] = useState(defaultFollowing || false);
+    const [loading, setLoading] = useState(false);
+
+    const handleToggle = async () => {
+        if (!targetId || loading) return;
+        const prev = following;
+        setFollowing(!prev);
+        try {
+            await followUser(targetId);
+        } catch {
+            setFollowing(prev);
+        }
+    };
 
     return (
         <motion.div
@@ -64,13 +78,17 @@ function UserRow({ user: u, delay, onUserClick }) {
             transition={{ delay }}
             className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[var(--bg-elevated)] transition-colors group"
         >
-            <Link to={`/profile/${u.id}`} onClick={() => { if (onUserClick) onUserClick(); }}>
-                <div className="avatar text-[11px] group-hover:ring-2 ring-[var(--accent)] transition-all">
-                    {u.firstName?.charAt(0)?.toUpperCase() || u.email?.charAt(0)?.toUpperCase() || u.name?.charAt(0)?.toUpperCase() || '?'}
+            <Link to={`/profile/${targetId}`} onClick={() => { if (onUserClick) onUserClick(); }}>
+                <div className="avatar text-[11px] group-hover:ring-2 ring-[var(--accent)] transition-all overflow-hidden">
+                    {u.profilePicUrl ? (
+                        <img src={u.profilePicUrl} alt={u.name || u.firstName} className="w-full h-full object-cover rounded-full" />
+                    ) : (
+                        u.firstName?.charAt(0)?.toUpperCase() || u.email?.charAt(0)?.toUpperCase() || u.name?.charAt(0)?.toUpperCase() || '?'
+                    )}
                 </div>
             </Link>
             <div className="flex-1 min-w-0">
-                <Link to={`/profile/${u.id}`} onClick={() => { if (onUserClick) onUserClick(); }}>
+                <Link to={`/profile/${targetId}`} onClick={() => { if (onUserClick) onUserClick(); }}>
                     <p className="text-[13px] font-medium text-[var(--text-primary)] truncate hover:underline">
                         {u.name || (u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.email)}
                     </p>
@@ -80,7 +98,7 @@ function UserRow({ user: u, delay, onUserClick }) {
             <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setFollowing(!following)}
+                onClick={handleToggle}
                 className={`text-[11px] font-medium px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${following
                     ? 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--border-color)]'
                     : 'bg-[var(--accent)] text-white'
@@ -91,3 +109,4 @@ function UserRow({ user: u, delay, onUserClick }) {
         </motion.div>
     );
 }
+

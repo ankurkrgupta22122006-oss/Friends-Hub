@@ -8,11 +8,13 @@ import UserListSidebar from '../components/chat/UserListSidebar';
 import ChatWindow from '../components/chat/ChatWindow';
 import { getPublicKeyForUser, decryptMessage } from '../crypto/e2ee';
 
+let conversationsCache = [];
+
 export default function ChatPage() {
     const { user } = useAuth();
     const currentUserId = user?.id;
     const [searchParams] = useSearchParams();
-    const [conversations, setConversations] = useState([]);
+    const [conversations, setConversations] = useState(conversationsCache);
     const [selectedUser, setSelectedUser] = useState(null);
     const [messages, setMessages] = useState([]);
     const [onlineUsers, setOnlineUsers] = useState([]);
@@ -26,6 +28,7 @@ export default function ChatPage() {
         getChatConversations()
             .then((res) => {
                 const list = Array.isArray(res.data) ? res.data : [];
+                conversationsCache = list;
                 setConversations(list);
 
                 // Deep-link: auto-open conversation if ?userId= is present
@@ -35,7 +38,6 @@ export default function ChatPage() {
                     if (existing) {
                         setSelectedUser(existing);
                     } else {
-                        // Not an existing conversation yet (e.g. first message) — open with minimal info
                         setSelectedUser({ id: Number(targetUserId) });
                     }
                 }

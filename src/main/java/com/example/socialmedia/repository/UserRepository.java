@@ -20,7 +20,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByEmail(String email);
 
-    @Query("SELECT u FROM User u WHERE u.id != :userId AND u.id NOT IN (SELECT f.following.id FROM Follow f WHERE f.follower.id = :userId) AND u.verificationStatus = 'VERIFIED'")
+    @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.userInfo WHERE u.id != :userId AND u.id NOT IN (SELECT f.following.id FROM Follow f WHERE f.follower.id = :userId) AND u.verificationStatus = 'VERIFIED'")
     List<User> findSuggestedUsers(@Param("userId") Long userId, Pageable pageable);
 
     @Query("SELECT u FROM User u LEFT JOIN u.userInfo ui " +
@@ -36,7 +36,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
                            @Param("location") String location,
                            @Param("bio") String bio,
                            Pageable pageable);
-    @Query("SELECT u FROM User u WHERE u.id != :userId AND u.verificationStatus = 'VERIFIED' " +
+    @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.userInfo WHERE u.id != :userId AND u.verificationStatus = 'VERIFIED' " +
            "AND u.id NOT IN (SELECT f.following.id FROM Follow f WHERE f.follower.id = :userId) " +
            "AND u.id NOT IN (SELECT b.blocked.id FROM Block b WHERE b.blocker.id = :userId) " +
            "AND u.id NOT IN (SELECT b.blocker.id FROM Block b WHERE b.blocked.id = :userId)")

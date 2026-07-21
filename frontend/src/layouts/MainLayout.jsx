@@ -55,7 +55,7 @@ export default function MainLayout() {
             <div className="orb orb-2" />
             <div className="orb orb-3" />
 
-            <Sidebar onCreatePost={() => setShowCreate(true)} />
+            <Sidebar onCreatePost={() => setShowCreate(true)} isCreateOpen={showCreate} />
             <div className="flex-1 flex flex-col relative z-10">
                 <Navbar newNotification={newNotification} />
                 <div className="flex flex-1">

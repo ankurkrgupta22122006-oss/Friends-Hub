@@ -10,13 +10,19 @@ import SkeletonPost from '../components/SkeletonPost';
 import StoriesBar from '../components/StoriesBar';
 import InfiniteScrollWrapper from '../components/ui/InfiniteScrollWrapper';
 
+let feedCache = {
+    posts: [],
+    page: 0,
+    hasMore: true
+};
+
 export default function HomePage() {
     const { user } = useAuth();
     const { setShowCreate: setLayoutCreate } = useOutletContext() || {};
-    const [posts, setPosts] = useState([]);
-    const [page, setPage] = useState(0);
-    const [hasMore, setHasMore] = useState(true);
-    const [loading, setLoading] = useState(true);
+    const [posts, setPosts] = useState(feedCache.posts);
+    const [page, setPage] = useState(feedCache.page);
+    const [hasMore, setHasMore] = useState(feedCache.hasMore);
+    const [loading, setLoading] = useState(feedCache.posts.length === 0);
     const [loadingMore, setLoadingMore] = useState(false);
     const [showCreate, setShowCreate] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
@@ -27,23 +33,30 @@ export default function HomePage() {
         if (fetchingRef.current) return;
         fetchingRef.current = true;
 
-        if (!append) setLoading(true);
-        else setLoadingMore(true);
+        if (!append && feedCache.posts.length === 0) setLoading(true);
+        else if (append) setLoadingMore(true);
 
         try {
             const res = await getAllPosts(pageNum, 8);
             const newPosts = res.data.content || [];
             const totalPages = res.data.totalPages || 0;
+            const nextHasMore = pageNum < totalPages - 1;
 
             setPosts((prev) => {
-                if (!append) return newPosts;
-                // Deduplicate
-                const existingIds = new Set(prev.map(p => p.id));
-                const unique = newPosts.filter(p => !existingIds.has(p.id));
-                return [...prev, ...unique];
+                let updated;
+                if (!append) updated = newPosts;
+                else {
+                    const existingIds = new Set(prev.map(p => p.id));
+                    const unique = newPosts.filter(p => !existingIds.has(p.id));
+                    updated = [...prev, ...unique];
+                }
+                if (pageNum === 0) {
+                    feedCache = { posts: updated, page: pageNum, hasMore: nextHasMore };
+                }
+                return updated;
             });
             setPage(pageNum);
-            setHasMore(pageNum < totalPages - 1);
+            setHasMore(nextHasMore);
         } catch (err) {
             console.error(err);
         } finally {

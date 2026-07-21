@@ -13,7 +13,8 @@ import java.util.List;
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
-    List<Notification> findByUserOrderByCreatedAtDesc(User user);
+    @Query("SELECT n FROM Notification n LEFT JOIN FETCH n.actor a LEFT JOIN FETCH a.userInfo WHERE n.user = :user ORDER BY n.createdAt DESC")
+    List<Notification> findByUserOrderByCreatedAtDesc(@Param("user") User user);
 
     long countByUserAndIsReadFalse(User user);
 
