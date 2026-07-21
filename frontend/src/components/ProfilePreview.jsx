@@ -1,5 +1,5 @@
 import { useAuth } from '../context/AuthContext';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { getProfile, getRecommendations, followUser } from '../api/users';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
