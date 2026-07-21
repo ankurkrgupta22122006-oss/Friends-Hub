@@ -203,28 +203,6 @@ public class ChatGroupService {
     }
 
     // Helpers
-    private ChatGroupDTO toGroupDTO(ChatGroup group) {
-        String lastMsg = "";
-        java.time.LocalDateTime lastTime = null;
-
-        var latestOpt = messageRepo.findTopByGroupIdOrderByCreatedAtDesc(group.getId());
-        if (latestOpt.isPresent()) {
-            ChatGroupMessage latest = latestOpt.get();
-            lastMsg = latest.getIsDeleted() ? "Message deleted"
-                    : (latest.getContent() != null && !latest.getContent().isEmpty()) ? latest.getContent() : "Image";
-            lastTime = latest.getCreatedAt();
-        }
-
-        return new ChatGroupDTO(
-                group.getId(),
-                group.getName(),
-                group.getGroupImageUrl(),
-                group.getMembers().size(),
-                lastMsg,
-                lastTime,
-                group.getCreatedBy().getId(),
-                group.getGroupKeys());
-    }
 
     private ChatGroupMessageDTO toMessageDTO(ChatGroupMessage msg) {
         String name = getDisplayName(msg.getSender());
