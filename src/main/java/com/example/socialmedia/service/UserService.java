@@ -153,6 +153,7 @@ public class UserService {
     // ─── Follow / Unfollow ────────────────────────────────────
 
     @Transactional
+    @CacheEvict(value = "feed", allEntries = true)
     public FollowToggleResponse toggleFollow(Long targetUserId, String email) {
         User follower = getUserByEmail(email);
         User following = userRepository.findById(targetUserId)

@@ -81,10 +81,25 @@ export default function HomePage() {
 
 
     const handleDelete = (id) => {
-        setPosts((prev) => prev.filter((p) => p.id !== id));
+        setPosts((prev) => {
+            const updated = prev.filter((p) => p.id !== id);
+            feedCache.posts = updated;
+            return updated;
+        });
+    };
+
+    const handleLikeToggle = (postId, newIsLiked, newLikeCount) => {
+        setPosts((prev) => {
+            const updated = prev.map((p) =>
+                p.id === postId ? { ...p, isLiked: newIsLiked, liked: newIsLiked, likeCount: newLikeCount, likesCount: newLikeCount } : p
+            );
+            feedCache.posts = updated;
+            return updated;
+        });
     };
 
     const handleRefresh = () => {
+        feedCache = { posts: [], page: 0, hasMore: true };
         setRefreshing(true);
         fetchPosts(0);
     };
@@ -141,7 +156,14 @@ export default function HomePage() {
                     loading={loadingMore}
                 >
                     {posts.map((post) => (
-                        <PostCard key={post.id} post={post} currentEmail={user?.email} currentUserId={user?.id} onDelete={handleDelete} />
+                        <PostCard
+                            key={post.id}
+                            post={post}
+                            currentEmail={user?.email}
+                            currentUserId={user?.id}
+                            onDelete={handleDelete}
+                            onLikeToggle={handleLikeToggle}
+                        />
                     ))}
                 </InfiniteScrollWrapper>
             )}

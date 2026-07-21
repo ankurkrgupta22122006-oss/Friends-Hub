@@ -23,17 +23,24 @@ function timeAgo(dateStr) {
     return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export default function PostCard({ post, currentEmail, currentUserId, onDelete }) {
-    const [liked, setLiked] = useState(post.isLiked ?? post.likedByCurrentUser ?? false);
-    const [likeCount, setLikeCount] = useState(post.likeCount || 0);
-    const [showComments, setShowComments] = useState(false);
-    const [commentCount, setCommentCount] = useState(post.commentCount || 0);
-    const [showMenu, setShowMenu] = useState(false);
-    const [deleting, setDeleting] = useState(false);
-    const [heartBurst, setHeartBurst] = useState(false);
-    const [showFloatHeart, setShowFloatHeart] = useState(false);
+export default function PostCard({ post, currentEmail, currentUserId, onDelete, onLikeToggle }) {
+    const { isDarkMode } = useTheme();
     const toast = useToast();
+    const [liked, setLiked] = useState(post.liked || post.isLiked);
+    const [likeCount, setLikeCount] = useState(post.likeCount || post.likesCount || 0);
+    const [commentCount, setCommentCount] = useState(post.commentCount || post.commentsCount || 0);
+    const [showComments, setShowComments] = useState(false);
+    const [showOptions, setShowOptions] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+    const [showFloatHeart, setShowFloatHeart] = useState(false);
+    const [heartBurst, setHeartBurst] = useState(false);
     const lastTap = useRef(0);
+
+    // Synchronize local liked/likeCount with incoming post prop updates
+    useEffect(() => {
+        setLiked(post.liked || post.isLiked);
+        setLikeCount(post.likeCount || post.likesCount || 0);
+    }, [post.id, post.liked, post.isLiked, post.likeCount, post.likesCount]);
 
     const initial = post.authorName?.charAt(0)?.toUpperCase() || '?';
     const profilePic = post.authorProfilePic || post.profilePicUrl;
@@ -41,8 +48,11 @@ export default function PostCard({ post, currentEmail, currentUserId, onDelete }
 
     const handleLike = async () => {
         const wasLiked = liked;
-        setLiked(!wasLiked);
-        setLikeCount((c) => (wasLiked ? c - 1 : c + 1));
+        const newLiked = !wasLiked;
+        const newCount = wasLiked ? Math.max(0, likeCount - 1) : likeCount + 1;
+        setLiked(newLiked);
+        setLikeCount(newCount);
+        if (onLikeToggle) onLikeToggle(post.id, newLiked, newCount);
         if (!wasLiked) {
             setHeartBurst(true);
             setTimeout(() => setHeartBurst(false), 500);
@@ -51,7 +61,8 @@ export default function PostCard({ post, currentEmail, currentUserId, onDelete }
             await toggleLike(post.id);
         } catch {
             setLiked(wasLiked);
-            setLikeCount((c) => (wasLiked ? c + 1 : c - 1));
+            setLikeCount(likeCount);
+            if (onLikeToggle) onLikeToggle(post.id, wasLiked, likeCount);
             toast.error('Failed to update like');
         }
     };
