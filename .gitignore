@@ -54,3 +54,9 @@ dist/
 build/
 build_log*.txt
 *.ps1
+
+# === Microservices & Sub-apps ===
+chat-service/node_modules/
+admin-portal/node_modules/
+admin-portal/.angular/
+admin-portal/dist/

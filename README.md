@@ -2,7 +2,7 @@
 
 <div align="center">
 
-  <h3>A full-stack social platform built with Spring Boot, React, Redis, Kafka, and Supabase.</h3>
+  <h3>A Polyglot Microservices Social Platform built with Spring Boot, Node.js + Express, MongoDB Atlas, Angular, React, Redis, Kafka, and Supabase.</h3>
 
   <p>
     <a href="https://www.friendshub.me"><strong>Live App</strong></a>
@@ -13,10 +13,11 @@
   <p>
     <img alt="Java" src="https://img.shields.io/badge/Java-17-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white" />
     <img alt="Spring Boot" src="https://img.shields.io/badge/Spring_Boot-3.2-6DB33F?style=for-the-badge&logo=springboot&logoColor=white" />
+    <img alt="Node.js" src="https://img.shields.io/badge/Node.js-Express-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" />
+    <img alt="MongoDB" src="https://img.shields.io/badge/MongoDB-Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white" />
+    <img alt="Angular" src="https://img.shields.io/badge/Angular-17-DD0031?style=for-the-badge&logo=angular&logoColor=white" />
     <img alt="React" src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=111111" />
     <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-Supabase-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" />
-    <img alt="Redis" src="https://img.shields.io/badge/Redis-Upstash-DC382D?style=for-the-badge&logo=redis&logoColor=white" />
-    <img alt="Kafka" src="https://img.shields.io/badge/Kafka-Events-231F20?style=for-the-badge&logo=apachekafka&logoColor=white" />
   </p>
 
 </div>
@@ -25,34 +26,34 @@
 
 ## Overview
 
-FriendsHub is a production-minded social media application with authentication, profiles, posts, stories, reactions, comments, private and group chat, real-time presence, admin moderation, media uploads, and async notification workflows.
-
-The project is split into a Spring Boot backend and a Vite React frontend. It is designed around a managed production stack: Supabase PostgreSQL and Storage, Upstash Redis, Upstash Kafka, Render for the backend, and Vercel for the frontend.
+FriendsHub is a production-minded, polyglot microservices social media application. Core authentication, profiles, posts, and relational data are powered by **Spring Boot & PostgreSQL**, while high-concurrency messaging, activity logs, and real-time analytics are offloaded to a **Node.js + Express + MongoDB Atlas** microservice. The frontend includes both a **React** main app and a standalone **Angular** Admin Dashboard.
 
 ## Product Highlights
 
+- **Polyglot Architecture:** Dual-engine backend combining Java Spring Boot and Node.js Express microservices.
+- **Hybrid Data Tier:** Supabase PostgreSQL for structured relational data + MongoDB Atlas for low-latency document storage.
+- **Dual Frontend Frameworks:** React 19 for the primary user application + Angular 17 for internal Admin & System Monitoring.
 - Secure account system with JWT authentication, email verification, password reset, and Google OAuth.
 - Social feed with image posts, likes, comments, emoji reactions, user suggestions, and profile privacy.
-- Stories with viewer tracking and short-lived story-oriented caching.
-- Private chat and group chat over STOMP WebSockets with authenticated socket connections.
-- Online presence backed by Redis TTL heartbeats.
-- Async notification and email workflows using Kafka topics and retry handling.
-- Admin controls for users, posts, comments, blocks, and audit logs.
-- Production hardening with rate limiting, CORS controls, secure headers, resilient error handling, and actuator metrics.
+- Real-time MongoDB activity stream and low-latency chat logging.
 
-## Architecture
+## Microservices Architecture
 
 ```mermaid
 flowchart LR
-    user["User Browser"] --> web["React 19 + Vite<br/>Tailwind CSS<br/>Vercel"]
-    web --> api["Spring Boot 3.2<br/>Java 17<br/>Render"]
-    web --> storage["Supabase Storage<br/>Media CDN"]
+    user["User Browser"] --> reactApp["React 19 Frontend<br/>User App"]
+    admin["Admin Browser"] --> angularApp["Angular 17 Portal<br/>Admin Dashboard"]
+    
+    reactApp --> api["Spring Boot 3.2<br/>Java 17 Core API"]
+    reactApp --> nodeApi["Node.js + Express<br/>MongoDB Chat Microservice"]
+    angularApp --> nodeApi
+
     api --> db["Supabase PostgreSQL"]
-    api --> redis["Upstash Redis<br/>Cache, presence, token blacklist"]
-    api --> kafka["Upstash Kafka<br/>Notifications, email, activity"]
-    api --> mail["SMTP Mail"]
-    web <-->|"STOMP / SockJS"| api
+    nodeApi --> mongodb["MongoDB Atlas"]
+    api --> redis["Upstash Redis"]
+    api --> kafka["Upstash Kafka"]
 ```
+
 
 ## Tech Stack
 
